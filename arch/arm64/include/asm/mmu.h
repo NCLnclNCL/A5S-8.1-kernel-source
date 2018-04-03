@@ -22,6 +22,8 @@
 
 #ifndef __ASSEMBLY__
 
+#ifndef __ASSEMBLY__
+
 typedef struct {
 	atomic64_t	id;
 	void		*vdso;
