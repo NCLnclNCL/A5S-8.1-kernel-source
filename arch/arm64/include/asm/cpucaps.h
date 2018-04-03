@@ -38,5 +38,6 @@
 #define ARM64_UNMAP_KERNEL_AT_EL0		23
 
 #define ARM64_NCAPS				24
+>>>>>>> bfca15762de3 (arm64: entry: Add fake CPU feature for unmapping the kernel at EL0)
 
 #endif /* __ASM_CPUCAPS_H */
