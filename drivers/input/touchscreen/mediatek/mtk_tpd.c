@@ -426,8 +426,8 @@ extern void lcd_esd_primary_display_esd_check_enable(bool enable);
 #endif /* ODM_WT_EDIT */
 
 static int tpd_fb_notifier_callback(
-			struct notifier_block *self,
-			unsigned long event, void *data)
+	struct notifier_block *self,
+	unsigned long event, void *data)
 {
 	struct fb_event *evdata = NULL;
 	int blank;
@@ -437,7 +437,7 @@ static int tpd_fb_notifier_callback(
 
 	evdata = data;
 #ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
+	//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
 	/* If we aren't interested in this event, skip it immediately ... */
 	//if (event != FB_EVENT_BLANK)
 	//	return 0;
@@ -448,7 +448,7 @@ static int tpd_fb_notifier_callback(
 	case FB_BLANK_UNBLANK:
 		TPD_DMESG("LCD ON Notify\n");
 #ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
+		//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
 		if (g_tpd_drv && tpd_suspend_flag && (event == FB_EVENT_BLANK)) {
 #endif
 			err = queue_work(touch_resume_workqueue,
@@ -457,35 +457,38 @@ static int tpd_fb_notifier_callback(
 				TPD_DMESG("start resume_workqueue failed\n");
 				return err;
 			}
+#ifdef ODM_WT_EDIT
 		}
+#endif
 
-		#ifdef ODM_WT_EDIT
-		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01,  cancel lcd esd check function at early blank;
+#ifdef ODM_WT_EDIT
+		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01, cancel lcd esd check function at early blank;
 		if (event == FB_EVENT_BLANK)
 			lcd_esd_primary_display_esd_check_enable(true);
-		#endif /* ODM_WT_EDIT */
+#endif /* ODM_WT_EDIT */
 
 		break;
 	case FB_BLANK_POWERDOWN:
-
-		#ifdef ODM_WT_EDIT
-		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01,  cancel lcd esd check function at early blank;
+#ifdef ODM_WT_EDIT
+		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01, cancel lcd esd check function at early blank;
 		if (event == FB_EARLY_EVENT_BLANK)
 			lcd_esd_primary_display_esd_check_enable(false);
-		#endif /* ODM_WT_EDIT */
-		TPD_DMESG("tpd_suspend_flag = %d\n",tpd_suspend_flag);
+#endif /* ODM_WT_EDIT */
+		TPD_DMESG("tpd_suspend_flag = %d\n", tpd_suspend_flag);
 #ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
+		//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
 		if (g_tpd_drv && !tpd_suspend_flag && (event == FB_EARLY_EVENT_BLANK)) {
 #endif
 			err = cancel_work_sync(&touch_resume_work);
 			if (!err)
 				TPD_DMESG("cancel resume_workqueue failed\n");
 			g_tpd_drv->suspend(NULL);
+#ifdef ODM_WT_EDIT
 		}
+#endif
 		tpd_suspend_flag = 1;
 #ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
+		//Bin.Su@ODM_WT.BSP.TP.Timing.2018/11/01,update TP timing in suspend and resume status
 		TPD_DMESG("LCD OFF Notify\n");
 #endif
 		break;
@@ -494,6 +497,7 @@ static int tpd_fb_notifier_callback(
 	}
 	return 0;
 }
+
 /* Add driver: if find TPD_TYPE_CAPACITIVE driver successfully, loading it */
 int tpd_driver_add(struct tpd_driver_t *tpd_drv)
 {
