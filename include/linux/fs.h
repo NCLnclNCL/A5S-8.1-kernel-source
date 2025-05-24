@@ -56,6 +56,7 @@ struct iov_iter;
 struct fscrypt_info;
 struct fscrypt_operations;
 
+
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
 extern void __init files_init(void);
@@ -68,7 +69,8 @@ extern struct inodes_stat_t inodes_stat;
 extern int leases_enable, lease_break_time;
 extern int sysctl_protected_symlinks;
 extern int sysctl_protected_hardlinks;
-
+extern int sysctl_protected_fifos;
+extern int sysctl_protected_regular;
 struct buffer_head;
 typedef int (get_block_t)(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create);
