@@ -34,5 +34,5 @@ obj-$(CONFIG_RMI4_CORE)		+= rmi4/
 
 #ifdef VENDOR_EDIT
 #Qing.Guan@BSP.Fingerprint.Basic, 2018/11/18, add for oppo secure common
-obj-y		+= misc/oppo_seccommon_drivers/
+#obj-y		+= misc/oppo_seccommon_drivers/
 #endif /* VENDOR_EDIT*/

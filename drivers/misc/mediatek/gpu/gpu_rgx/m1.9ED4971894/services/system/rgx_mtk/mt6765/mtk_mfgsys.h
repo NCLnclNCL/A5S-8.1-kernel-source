@@ -108,8 +108,8 @@ extern unsigned int mt_gpufreq_get_volt_by_idx(unsigned int idx);
 #endif
 
 #if defined(MODULE)
-int mtk_mfg_async_init(void);
-int mtk_mfg_2d_init(void);
+int mtk_mfg_async_init(void arg);
+int mtk_mfg_2d_init(void arg);
 #endif
 
 #endif
