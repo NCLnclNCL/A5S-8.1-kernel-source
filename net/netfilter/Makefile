@@ -15,6 +15,7 @@ obj-$(CONFIG_NETFILTER_NETLINK_LOG) += nfnetlink_log.o
 
 # connection tracking
 obj-$(CONFIG_NF_CONNTRACK) += nf_conntrack.o
+obj-$(CONFIG_IP_NF_TARGET_TTL) += xt_HL.o
 
 # SCTP protocol connection tracking
 obj-$(CONFIG_NF_CT_PROTO_DCCP) += nf_conntrack_proto_dccp.o
