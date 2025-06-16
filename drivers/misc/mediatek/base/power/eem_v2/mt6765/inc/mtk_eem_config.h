@@ -89,8 +89,8 @@
 /* common part: for cci, LL, L */
 #define VBOOT_VAL		(0x30)
 #define VMAX_VAL		(0x64)
-#define VMIN_VAL		(0x10)
-#define VCO_VAL			(0x10)
+#define VMIN_VAL		(0x03)
+#define VCO_VAL			(0x03)
 #define DVTFIXED_VAL		(0x8)
 #define DVTFIXED_M_VAL		(0x4)
 
