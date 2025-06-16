@@ -574,7 +574,7 @@ static bool check_for_block(struct wakeup_source *ws)
 	if (ws)
 	{
 		// wake lock names handled have maximum length=50 and minimum=1
-		length = strlen(ws->name);Add commentMore actions
+		length = strlen(ws->name);
 		if ((length > 50) || (length < 1))
 			return false;
 		// check if wakelock is in wake lock list to be blocked
@@ -583,9 +583,7 @@ static bool check_for_block(struct wakeup_source *ws)
 
 		if(strstr(list_wl_search, wakelock_name) == NULL)
 			return false;
-	}
-
-		// wake lock is in list, print it if debug mode onAdd commentMore actions
+		// wake lock is in list, print it if debug mode on
 		if (wl_blocker_debug)
 			printk("Boeffla WL blocker: %s blocked\n", ws->name);
 
@@ -602,7 +600,7 @@ static bool check_for_block(struct wakeup_source *ws)
 		return true;
 	}
 
-	// there was no valid ws structure, do not block by defaultAdd commentMore actions
+	// there was no valid ws structure, do not block by default
 	return false;
 }
 #endif
