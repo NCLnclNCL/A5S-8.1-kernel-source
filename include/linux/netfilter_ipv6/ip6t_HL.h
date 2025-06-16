@@ -6,7 +6,7 @@
 
 enum {
     IP6T_HL_SET = 0,
-    IP6T_HL_INC,Add commentMore actions
+    IP6T_HL_INC,
     IP6T_HL_DEC
 };
 
