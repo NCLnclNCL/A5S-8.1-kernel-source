@@ -23,7 +23,7 @@ apksign {
 }
 
 android {
-    namespace = "com.rifsxd.ksunext"
+    namespace = "me.weishu.kernelsu"
 
     buildTypes {
         release {
@@ -34,6 +34,7 @@ android {
     }
 
     buildFeatures {
+        aidl = true
         buildConfig = true
         compose = true
         prefab = true
@@ -67,7 +68,7 @@ android {
     applicationVariants.all {
         outputs.forEach {
             val output = it as BaseVariantOutputImpl
-            output.outputFileName = "KernelSU_Next_${managerVersionName}_${managerVersionCode}-$name.apk"
+            output.outputFileName = "KernelSU_${managerVersionName}_${managerVersionCode}-$name.apk"
         }
         kotlin.sourceSets {
             getByName(name) {
@@ -132,9 +133,4 @@ dependencies {
     implementation(libs.androidx.webkit)
 
     implementation(libs.lsposed.cxx)
-
-    implementation(libs.mmrl.platform)
-    compileOnly(libs.mmrl.hidden.api)
-    implementation(libs.mmrl.ui)
-    implementation(libs.mmrl.webui)
 }

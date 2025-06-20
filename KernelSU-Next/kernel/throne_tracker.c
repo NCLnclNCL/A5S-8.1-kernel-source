@@ -106,7 +106,7 @@ struct apk_path_hash {
 	struct list_head list;
 };
 
-static struct list_head apk_path_hash_list = LIST_HEAD_INIT(apk_path_hash_list);
+static struct list_head apk_path_hash_list;
 
 struct my_dir_context {
 	struct dir_context ctx;
@@ -175,7 +175,7 @@ FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
 		list_add_tail(&data->list, my_ctx->data_path_list);
 	} else {
 		if ((namelen == 8) && (strncmp(name, "base.apk", namelen) == 0)) {
-			struct apk_path_hash *pos, *n;
+			struct apk_path_hash *pos;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
 			unsigned int hash = full_name_hash(dirpath, strlen(dirpath));
 #else
@@ -188,23 +188,12 @@ FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
 				}
 			}
 
-			bool is_manager = is_manager_apk(dirpath);
+			bool is_manager = ksu_is_manager_apk(dirpath);
 			pr_info("Found new base.apk at path: %s, is_manager: %d\n",
 				dirpath, is_manager);
 			if (is_manager) {
 				crown_manager(dirpath, my_ctx->private_data);
 				*my_ctx->stop = 1;
-
-				// Manager found, clear APK cache list
-				list_for_each_entry_safe(pos, n, &apk_path_hash_list, list) {
-					list_del(&pos->list);
-					kfree(pos);
-				}
-			} else {
-				struct apk_path_hash *apk_data = kmalloc(sizeof(struct apk_path_hash), GFP_ATOMIC);
-				apk_data->hash = hash;
-				apk_data->exists = true;
-				list_add_tail(&apk_data->list, &apk_path_hash_list);
 			}
 		}
 	}
@@ -217,6 +206,8 @@ void search_manager(const char *path, int depth, struct list_head *uid_data)
 	int i, stop = 0;
 	struct list_head data_path_list;
 	INIT_LIST_HEAD(&data_path_list);
+	INIT_LIST_HEAD(&apk_path_hash_list);
+	unsigned long data_app_magic = 0;
 
 	// Initialize APK cache list
 	struct apk_path_hash *pos, *n;
@@ -248,6 +239,24 @@ void search_manager(const char *path, int depth, struct list_head *uid_data)
 					pr_err("Failed to open directory: %s, err: %ld\n", pos->dirpath, PTR_ERR(file));
 					goto skip_iterate;
 				}
+				
+				// grab magic on first folder, which is /data/app
+				if (!data_app_magic) {
+					if (file->f_inode->i_sb->s_magic) {
+						data_app_magic = file->f_inode->i_sb->s_magic;
+						pr_info("%s: dir: %s got magic! 0x%lx\n", __func__, pos->dirpath, data_app_magic);
+					} else {
+						filp_close(file, NULL);
+						goto skip_iterate;
+					}
+				}
+				
+				if (file->f_inode->i_sb->s_magic != data_app_magic) {
+					pr_info("%s: skip: %s magic: 0x%lx expected: 0x%lx\n", __func__, pos->dirpath, 
+						file->f_inode->i_sb->s_magic, data_app_magic);
+					filp_close(file, NULL);
+					goto skip_iterate;
+				}
 
 				iterate_dir(file, &ctx.ctx);
 				filp_close(file, NULL);
@@ -259,12 +268,11 @@ skip_iterate:
 		}
 	}
 
-	// Remove stale cached APK entries
+	// clear apk_path_hash_list unconditionally
+	pr_info("search manager: cleanup!\n");
 	list_for_each_entry_safe(pos, n, &apk_path_hash_list, list) {
-		if (!pos->exists) {
-			list_del(&pos->list);
-			kfree(pos);
-		}
+		list_del(&pos->list);
+		kfree(pos);
 	}
 }
 

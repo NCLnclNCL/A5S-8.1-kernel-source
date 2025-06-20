@@ -1,34 +1,68 @@
-**English** | [简体中文](README_CN.md) | [繁體中文](README_TW.md) | [Türkçe](README_TR.md) | [Português (Brasil)](README_PT-BR.md) | [한국어](README_KO.md) | [Français](README_FR.md) | [Bahasa Indonesia](README_ID.md) | [Русский](README_RU.md) | [ภาษาไทย](README_TH.md) | [Tiếng Việt](README_VI.md) | [Italiano](README_IT.md) | [Polski](README_PL.md) | [Български](README_BG.md) | [日本語](README_JA.md)
+<img src="https://kernelsu.org/logo.png" style="width: 96px;" alt="logo">
 
-# KernelSU Next
+# KernelSU
 
-<img src="/assets/kernelsu_next.png" style="width: 96px;" alt="logo">
+### A Kernel-based root solution for Android devices.
 
-A kernel-based root solution for Android devices.
+> [!NOTE]
+> Official KernelSU support for Non-GKI kernels has been ended.
+> 
+> This is unofficial KernelSU fork, all changes are not guaranteed stable!
+>
+> All rights reserved to [@tiann](https://github.com/tiann), the author of KernelSU.
+>
 
-[![Latest Release](https://img.shields.io/github/v/release/KernelSU-Next/KernelSU-Next?label=Release&logo=github)](https://github.com/KernelSU-Next/KernelSU-Next/releases/latest)
-[![Nightly Release](https://img.shields.io/badge/Nightly%20Release-gray?logo=hackthebox&logoColor=fff)](https://nightly.link/KernelSU-Next/KernelSU-Next/workflows/build-manager-ci/next/Manager)
+[![Latest release](https://img.shields.io/github/v/release/rsuntk/KernelSU?label=Release&logo=github)](https://github.com/rsuntk/KernelSU/releases/latest)
+[![Latest LKM release](https://img.shields.io/github/v/release/rsuntk/ksu-lkm?label=Release&logo=github)](https://github.com/rsuntk/ksu-lkm/releases/latest)
+[![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/rsukrnlsu)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![GitHub License](https://img.shields.io/github/license/KernelSU-Next/KernelSU-Next?logo=gnu)](/LICENSE)
+[![GitHub License](https://img.shields.io/github/license/tiann/KernelSU?logo=gnu)](/LICENSE)
+
+## How to add
+```
+curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
+```
+
+## Hook method
+
+1. **KPROBES hook:**
+    - Used for Loadable Kernel Module (LKM)
+    - Default hook method on GKI kernels.
+    - Need `# CONFIG_KSU_MANUAL_HOOK is not set` & `CONFIG_KPROBES=y`
+    - Require CONFIG_KPROBES
+2. **Manual hook:**
+    - Require: https://kernelsu.org/guide/how-to-integrate-for-non-gki.html#manually-modify-the-kernel-source
+    - Default hook method on Non-GKI kernels.
+    - Need `CONFIG_KSU_MANUAL_HOOK=y`
 
 ## Features
 
 1. Kernel-based `su` and root access management.
-2. Module system based on dynamic mount system [Magic Mount](https://topjohnwu.github.io/Magisk/details.html#magic-mount) / [OverlayFS](https://en.wikipedia.org/wiki/OverlayFS).
+2. Module system based on [5ec1cff's Magic Mount API on KernelSU](https://github.com/5ec1cff/KernelSU)
 3. [App Profile](https://kernelsu.org/guide/app-profile.html): Lock up the root power in a cage.
+4. Bringing back non-GKI/GKI 1.0 support
+5. Added bare armeabi-v7a/arm32 support.
 
-## Compatibility state
+## Compatibility State
 
-KernelSU Next officially supports most Android kernels starting from 4.4 up to 6.6.
- - GKI 2.0 (5.10+) kernels can run pre-built images and LKM/KMI.
- - GKI 1.0 (4.19 - 5.4) kernels need to rebuilt with KernelSU driver.
- - EOL (<4.14) kernels also need to be rebuilt with KernelSU driver (3.18+ is experimental and may need some function backports).
+KernelSU (before v1.0.0) officially supports Android GKI 2.0 devices (kernel 5.10+).
 
-Currently, only the `arm64-v8a` architecture is supported.
+Older kernels (4.4+) are also compatible, but the kernel will have to be built manually.
+
+With more backports, KernelSU can supports 3.x kernel (3.4-3.18).
+
+Currently, only `arm64-v8a` and `armeabi-v7a (bare)` are supported.
 
 ## Usage
 
-- [Installation instruction](https://ksunext.org/pages/installation.html)
+- [Installation Instruction](https://kernelsu.org/guide/installation.html)
+- [How to build?](https://kernelsu.org/guide/how-to-build.html)
+- [Official Website](https://kernelsu.org/)
+
+## Discussion
+
+- Official KernelSU Telegram: [@KernelSU](https://t.me/KernelSU)
+- Unofficial RKSU Telegram: [@rsukrnlsu_grp](https://t.me/rsukrnlsu_grp)
 
 ## Security
 
@@ -39,25 +73,10 @@ For information on reporting security vulnerabilities in KernelSU, see [SECURITY
 - Files under the `kernel` directory are [GPL-2.0-only](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html).
 - All other parts except the `kernel` directory are [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html).
 
-## Donations
-
-- 0x12b5224b7aca0121c2f003240a901e1d064371c1 [ USDT BEP20 ]
-
-- TYUVMWGTcnR5svnDoX85DWHyqUAeyQcdjh [ USDT TRC20 ]
-
-- 0x12b5224b7aca0121c2f003240a901e1d064371c1 [ USDT ERC20 ]
-
-- 0x12b5224b7aca0121c2f003240a901e1d064371c1 [ ETH ERC20 ]
-
-- Ld238uYBuRQdZB5YwdbkuU6ektBAAUByoL [ LTC ]
-
-- 19QgifcjMjSr1wB2DJcea5cxitvWVcXMT6 [ BTC ]
-
 ## Credits
 
-- [Kernel-Assisted Superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/): The KernelSU idea.
-- [Magisk](https://github.com/topjohnwu/Magisk): The powerful root tool.
-- [genuine](https://github.com/brevent/genuine/): APK v2 signature validation.
-- [Diamorphine](https://github.com/m0nad/Diamorphine): Some rootkit skills.
-- [KernelSU](https://github.com/tiann/KernelSU): Thanks to tiann, or else KernelSU Next wouldn't even exist.
-- [Magic Mount Port](https://github.com/5ec1cff/KernelSU/blob/main/userspace/ksud/src/magic_mount.rs): 💜 5ec1cff for saving KernelSU!
+- [kernel-assisted-superuser](https://git.zx2c4.com/kernel-assisted-superuser/about/): the KernelSU idea.
+- [Magisk](https://github.com/topjohnwu/Magisk): the powerful root tool.
+- [genuine](https://github.com/brevent/genuine/): apk v2 signature validation.
+- [Diamorphine](https://github.com/m0nad/Diamorphine): some rootkit skills.
+- [5ec1cff](https://github.com/5ec1cff): magic mount api implementation.
