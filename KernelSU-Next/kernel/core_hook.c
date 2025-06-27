@@ -987,7 +987,19 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
 			}
 		}
 	}
+	// - here we check if uid is a isolated service spawned by zygote directly
+	// - Apps that do not use "useAppZyogte" to start a isolated service will be directly
+	//   spawned by zygote which KSU will ignore it by default, the only fix for now is to
+	//   force a umount for those uid
+	// - Therefore make sure your root app doesn't use isolated service for root access
+	if (new_uid.val >= 90000 && new_uid.val < 1000000) {
+		task_lock(current);
+		current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
+		task_unlock(current);
+		goto out_susfs_try_umount_all;
+	}
 #endif
+
 
 	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
 		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
@@ -1003,8 +1015,10 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
 		task_lock(current);
 		current->susfs_task_state |= TASK_STRUCT_NON_ROOT_USER_APP_PROC;
 		task_unlock(current);
+		goto out_susfs_try_umount_all;
 	}
 #endif
+
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 out_ksu_try_umount:
@@ -1033,9 +1047,11 @@ out_ksu_try_umount:
 		current->pid);
 #endif
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+out_susfs_try_umount_all:
 	// susfs come first, and lastly umount by ksu, make sure umount in reversed order
 	susfs_try_umount_all(new_uid.val);
 #else
+
 
 	// fixme: use `collect_mounts` and `iterate_mount` to iterate all mountpoint and
 	// filter the mountpoint whose target is `/data/adb`
