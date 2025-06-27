@@ -129,7 +129,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 		return;
 	}
 
-	ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_ENTRY);
+	ptrace_report_syscall(regs, PTRACE_EVENTMSG_SYSCALL_EXIT);
 }
 
 /**
