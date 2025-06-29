@@ -20,7 +20,8 @@ unexport LC_ALL
 LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
-
+TARGET_BUILD_VARIANT := user
+export TARGET_BUILD_VARIANT
 # Avoid interference with shell env settings
 unexport GREP_OPTIONS
 
