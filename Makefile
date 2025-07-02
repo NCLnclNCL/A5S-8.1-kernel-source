@@ -732,11 +732,11 @@ ifdef CONFIG_CC_STACKPROTECTOR
 endif
 KBUILD_CFLAGS += $(stackp-flag)
 #KBUILD_CFLAGS +=-w
-KBUILD_CFLAGS +=-Wno-stringop-overflow
-KBUILD_CFLAGS +=-Wno-attributes
-KBUILD_CFLAGS +=-Wno-attribute-alias
-KBUILD_CFLAGS +=-Wno-address-of-packed-member
-KBUILD_CFLAGS +=-Wno-builtin-declaration-mismatch
+KBUILD_CFLAGS += $(call cc-disable-warning, Wno-stringop-overflow)
+KBUILD_CFLAGS += $(call cc-disable-warning, Wno-attributes)
+KBUILD_CFLAGS += $(call cc-disable-warning, attribute-alias)
+KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
+KBUILD_CFLAGS += $(call cc-disable-warning, builtin-declaration-mismatch)
 ifeq ($(cc-name),clang)
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
 KBUILD_CPPFLAGS += $(call cc-option,-Wno-unknown-warning-option,)
