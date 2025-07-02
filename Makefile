@@ -732,8 +732,8 @@ ifdef CONFIG_CC_STACKPROTECTOR
 endif
 KBUILD_CFLAGS += $(stackp-flag)
 #KBUILD_CFLAGS +=-w
-KBUILD_CFLAGS += $(call cc-disable-warning, Wno-stringop-overflow)
-KBUILD_CFLAGS += $(call cc-disable-warning, Wno-attributes)
+KBUILD_CFLAGS += $(call cc-disable-warning, stringop-overflow)
+KBUILD_CFLAGS += $(call cc-disable-warning, attributes)
 KBUILD_CFLAGS += $(call cc-disable-warning, attribute-alias)
 KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
 KBUILD_CFLAGS += $(call cc-disable-warning, builtin-declaration-mismatch)
