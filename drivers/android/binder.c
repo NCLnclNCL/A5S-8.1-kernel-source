@@ -83,7 +83,7 @@
 #ifdef CONFIG_MTK_ENG_BUILD
 #define BINDER_WATCHDOG		"v0.1"
 #endif
-
+static DEFINE_MUTEX(mtk_binder_main_lock);
 #ifdef BINDER_WATCHDOG
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -94,7 +94,7 @@
 #include <linux/rtc.h>
 /* include <mt-plat/aee.h> */
 
-static DEFINE_MUTEX(mtk_binder_main_lock);
+
 static pid_t system_server_pid;
 
 /*****************************************************************************/
