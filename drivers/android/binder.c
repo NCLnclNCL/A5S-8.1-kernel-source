@@ -5285,11 +5285,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	binder_thread_dec_tmpref(thread);
 	return active_transactions;
 }
-static inline void binder_unlock(const char *tag)
-{
-	trace_binder_unlock(tag);
-	mutex_unlock(&mtk_binder_main_lock);
-}
+
 static unsigned int binder_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
@@ -5299,7 +5295,7 @@ static unsigned int binder_poll(struct file *filp,
 
 	thread = binder_get_thread(proc);
 	if (!thread) {
-		binder_unlock(__func__);
+		mtk_binder_unlock(__func__);
 		return POLLERR;
 }
 	binder_inner_proc_lock(thread->proc);

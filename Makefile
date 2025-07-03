@@ -826,7 +826,7 @@ CHECKFLAGS     += $(NOSTDINC_FLAGS)
 
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
-KBUILD_CFLAGS += $(call cc-disable-warning, ignored-qualifiers)
+
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
 
