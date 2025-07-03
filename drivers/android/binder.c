@@ -5294,9 +5294,10 @@ static unsigned int binder_poll(struct file *filp,
 	bool wait_for_proc_work;
 
 	thread = binder_get_thread(proc);
-	if (!thread)
+	if (!thread) {
+		mtk_binder_unlock(__func__);
 		return POLLERR;
-
+}
 	binder_inner_proc_lock(thread->proc);
 	thread->looper |= BINDER_LOOPER_STATE_POLL;
 	wait_for_proc_work = binder_available_for_proc_work_ilocked(thread);
