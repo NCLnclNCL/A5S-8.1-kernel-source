@@ -243,7 +243,7 @@ config UNUSED_SYMBOLS
 config PAGE_OWNER
 	bool "Track page owner"
 	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
-	select DEBUG_FS
+	
 	select STACKTRACE
 	select STACKDEPOT
 	select PAGE_EXTENSION
@@ -522,7 +522,7 @@ config HAVE_DEBUG_KMEMLEAK
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && HAVE_DEBUG_KMEMLEAK
-	select DEBUG_FS
+	
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
 	select CRC32
@@ -719,7 +719,7 @@ config ARCH_HAS_KCOV
 config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
-	select DEBUG_FS
+	
 	select GCC_PLUGINS if !COMPILE_TEST
 	select GCC_PLUGIN_SANCOV if !COMPILE_TEST
 	help
@@ -1529,7 +1529,7 @@ config CPU_HOTPLUG_STATE_CONTROL
 config NOTIFIER_ERROR_INJECTION
 	tristate "Notifier error injection"
 	depends on DEBUG_KERNEL
-	select DEBUG_FS
+	
 	help
 	  This option provides the ability to inject artificial errors to
 	  specified notifier chain callbacks. It is useful to test the error
@@ -1674,7 +1674,7 @@ config FAIL_MMC_REQUEST
 
 config FAIL_FUTEX
 	bool "Fault-injection capability for futexes"
-	select DEBUG_FS
+	
 	depends on FAULT_INJECTION && FUTEX
 	help
 	  Provide fault-injection capability for futexes.
