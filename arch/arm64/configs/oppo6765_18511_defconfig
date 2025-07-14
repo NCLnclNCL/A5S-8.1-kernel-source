@@ -2,6 +2,7 @@
 # Automatically generated file; DO NOT EDIT.
 # Linux/arm64 4.9.77 Kernel Configuration
 #
+CONFIG_OPPO_FINGERPRINT=y
 CONFIG_PROCESS_RECLAIM=y
 CONFIG_PROCESS_RECLAIM_ENHANCE=y
 CONFIG_ARM64=y
