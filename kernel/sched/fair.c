@@ -942,6 +942,7 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			return;
 		}
 		trace_sched_stat_wait(p, delta);
+		
 	}
 
 	schedstat_set(se->statistics.wait_max,
