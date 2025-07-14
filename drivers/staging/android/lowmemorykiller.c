@@ -787,11 +787,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 #ifdef VENDOR_EDIT
 /*huacai.zhou@PSW.BSP.Kernel.MM. 2018/01/15, modify for show more meminfo*/
 		show_mem(SHOW_MEM_FILTER_NODES);
-		if(get_eng_version() == 1) {
-			if(selected_oom_score_adj < 300 ) {
-				oom_dump_extra_info();
-			}
-		}
 #endif /*VENDOR_EDIT*/
 		lowmem_deathpending_timeout = jiffies + HZ;
 		lowmem_trigger_warning(selected, selected_oom_score_adj);
