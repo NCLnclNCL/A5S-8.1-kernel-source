@@ -2,6 +2,7 @@
 # Automatically generated file; DO NOT EDIT.
 # Linux/arm64 4.9.77 Kernel Configuration
 #
+CONFIG_OPPO_FINGERPRINT_MTK=y
 CONFIG_OPPO_FG_OPT=y
 CONFIG_PROC_UID=y
 CONFIG_OPPO_FINGERPRINT=y

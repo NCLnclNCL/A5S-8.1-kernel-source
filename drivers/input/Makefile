@@ -1,9 +1,10 @@
 #
 # Makefile for the input core drivers.
 #
-
+#TARGET_PRODUCT := full_oppo6765_18511
 # Each configuration option enables a list of files.
-
+export TARGET_PRODUCT := full_oppo6765
+export OPPO_TARGET_DEVICE := oppo6765
 obj-$(CONFIG_INPUT)		+= input-core.o
 input-core-y := input.o input-compat.o input-mt.o ff-core.o
 

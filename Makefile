@@ -21,6 +21,7 @@ LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
 TARGET_BUILD_VARIANT := user
+#TARGET_PRODUCT := full_oppo6765_18511
 export TARGET_BUILD_VARIANT
 # Avoid interference with shell env settings
 unexport GREP_OPTIONS
