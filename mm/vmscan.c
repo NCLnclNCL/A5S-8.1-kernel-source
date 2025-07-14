@@ -142,6 +142,13 @@ struct scan_control {
  * From 0 .. 100.  Higher means more swappy.
  */
 int vm_swappiness = 60;
+
+#ifdef VENDOR_EDIT //yixue.ge@psw.bsp.kernel 20170720 add for add direct_vm_swappiness
+/*
+ * Direct reclaim swappiness, exptct 0 - 60. Higher means more swappy and slower.
+ */
+int direct_vm_swappiness = 60;
+#endif
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
@@ -2189,11 +2196,19 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		if (!mem_cgroup_online(memcg))
 			force_scan = true;
 	}
+#ifdef VENDOR_EDIT //yixue.ge@psw.bsp.kernel.driver 20170810 modify for reserver some zram disk size
+	else
+		swappiness = direct_vm_swappiness;
+#endif	
 	if (!global_reclaim(sc))
 		force_scan = true;
 
 	/* If we have no swap space, do not bother scanning anon pages. */
+	#ifndef VENDOR_EDIT //yixue.ge@psw.bsp.kernel.driver 20170810 modify for reserver some zram disk size
 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
+#else
+	if (!sc->may_swap || (mem_cgroup_get_nr_swap_pages(memcg) <= total_swap_pages>>6)) {
+#endif
 		scan_balance = SCAN_FILE;
 		goto out;
 	}
