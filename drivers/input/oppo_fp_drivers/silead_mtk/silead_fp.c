@@ -225,7 +225,7 @@ static char vendor_name[PROC_VND_ID_LEN];
 #endif /* PROC_NODE */
 
 
-struct class *silfp_class;
+extern struct class *silfp_class;
 
 static struct workqueue_struct *silfp_wq;
 struct silfp_data *g_fp_dev = NULL;
