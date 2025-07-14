@@ -1956,6 +1956,12 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 }
 #endif
 
+const struct file_operations proc_reclaim_operations = {
+	.write		= reclaim_write,
+	.llseek		= noop_llseek,
+};
+#endif
+
 #ifdef CONFIG_NUMA
 
 struct numa_maps {
