@@ -1698,6 +1698,15 @@ enum perf_event_task_context {
 	perf_sw_context,
 	perf_nr_task_contexts,
 };
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@TEC.Kernel.Performance, 2019/03/04
+ * Record process reclaim infor
+ */
+union reclaim_limit {
+	unsigned long stop_jiffies;
+	unsigned long stop_scan_addr;
+};
+#endif
 
 /* Track pages that require TLB flushes */
 struct tlbflush_unmap_batch {
@@ -2226,6 +2235,13 @@ struct task_struct {
 	unsigned long preempt_dur;
 #endif
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+	/* Kui.Zhang@TEC.Kernel.Performance, 2019/03/04
+	 * Record process reclaim infor
+	 */
+	union reclaim_limit reclaim;
+#endif
+
 /* CPU-specific state of this task */
 #ifdef CONFIG_KSU_SUSFS
 	u64 susfs_task_state;
@@ -2535,6 +2551,12 @@ static inline cputime_t task_gtime(struct task_struct *t)
 extern void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st);
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-12-25,
+ * flag that current task is process reclaimer
+ */
+#define PF_RECLAIM_SHRINK 0x00000002
+#endif
 /*
  * Per process flags
  */
@@ -2565,6 +2587,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, 
 #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
 #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-12-25,
+ * check current task is process reclaimer?
+ */
+#define current_is_reclaimer() (current->flags & PF_RECLAIM_SHRINK)
+#endif
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
