@@ -10,6 +10,7 @@
 #include <linux/stackdepot.h>
 #include <linux/seq_file.h>
 #include <linux/hashtable.h>
+#include <linux/stackdepot.h>
 
 #include "internal.h"
 
@@ -156,7 +157,7 @@ read_page_owner_slim(struct file *file, char __user *buf, size_t count,
 		if (entry->allocations > 0) {
 			depot_fetch_stack(entry->handle, &trace);
 				ret += snprintf(kbuf, count,
-						"%8zu %ps %p %p %p %p %p\n",
+						"%8zu %pS %pS %pS %pS %pS %pS\n",
 						entry->allocations,
 						(void *) trace.entries[3],
 						(void *) trace.entries[3],
@@ -431,6 +432,65 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
 	 * the new page, which will be freed.
 	 */
 	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
+}
+
+int __dump_pfn_backtrace(unsigned long pfn)
+{
+	struct page *page = pfn_to_page(pfn);
+	struct page_ext *page_ext = lookup_page_ext(page);
+	int pageblock_mt, page_mt;
+
+	/* Check for holes within a MAX_ORDER area */
+	if (!pfn_valid_within(pfn))
+		return -2;
+	if (page_ext) {
+		if (test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
+#ifdef CONFIG_PAGE_OWNER_SLIM
+			struct BtEntry *entry = page_ext->entry;
+			struct stack_trace trace = {
+				.nr_entries = entry->nr_entries,
+				.entries = &entry->backtrace[0],
+			};
+#else
+			struct stack_trace trace = {
+				.nr_entries = page_ext->nr_entries,
+				.entries = &page_ext->trace_entries[0],
+			};
+#endif
+
+			pr_info("Page allocated via order %u, mask 0x%x, (%d:%d)\n",
+					page_ext->order, page_ext->gfp_mask,
+					atomic_read(&page->_refcount),
+					atomic_read(&page->_mapcount));
+
+			pageblock_mt = get_pfnblock_migratetype(page, pfn);
+			page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
+			pr_info("PFN %lu Block %lu type %d %s Flags",
+					pfn,
+					pfn >> pageblock_order,
+					pageblock_mt,
+					pageblock_mt != page_mt ? "Fallback" :
+								"        ");
+			pr_info("%s%s%s%s%s%s%s%s%s%s%s%s\n",
+					PageLocked(page)	? "K" : " ",
+					PageError(page)		? "E" : " ",
+					PageReferenced(page)	? "R" : " ",
+					PageUptodate(page)	? "U" : " ",
+					PageDirty(page)		? "D" : " ",
+					PageLRU(page)		? "L" : " ",
+					PageActive(page)	? "A" : " ",
+					PageSlab(page)		? "S" : " ",
+					PageWriteback(page)	? "W" : " ",
+					PageCompound(page)	? "C" : " ",
+					PageSwapCache(page)	? "B" : " ",
+					PageMappedToDisk(page)	? "M" : " ");
+
+			print_stack_trace(&trace, 0);
+
+			return 0;
+		}
+	}
+	return -1;
 }
 
 void pagetypeinfo_showmixedcount_print(struct seq_file *m,
@@ -823,3 +883,92 @@ static int __init pageowner_init(void)
 	return 0;
 }
 late_initcall(pageowner_init)
+
+static ssize_t __update_max_page_owner(unsigned long pfn,
+		struct page *page, struct page_owner *page_owner,
+		depot_stack_handle_t handle)
+{
+	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.entries = entries,
+		.max_entries = PAGE_OWNER_STACK_DEPTH,
+		.skip = 0
+	};
+
+	depot_hit_stack(handle, &trace, (1 << page_owner->order));
+	return 0;
+}
+
+ssize_t print_max_page_owner(void)
+{
+	unsigned long pfn;
+	struct page *page;
+	struct page_ext *page_ext;
+	struct page_owner *page_owner;
+	depot_stack_handle_t handle;
+
+	if (!static_branch_unlikely(&page_owner_inited))
+		return -EINVAL;
+
+	page = NULL;
+	pfn = min_low_pfn;
+
+	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
+	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
+		pfn++;
+
+	drain_all_pages(NULL);
+
+	/* Find an allocated page */
+	for (; pfn < max_pfn; pfn++) {
+		/*
+		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
+		 * validate the area as existing, skip it if not
+		 */
+		if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0 && !pfn_valid(pfn)) {
+			pfn += MAX_ORDER_NR_PAGES - 1;
+			continue;
+		}
+
+		/* Check for holes within a MAX_ORDER area */
+		if (!pfn_valid_within(pfn))
+			continue;
+
+		page = pfn_to_page(pfn);
+		if (PageBuddy(page)) {
+			unsigned long freepage_order = page_order_unsafe(page);
+
+			if (freepage_order < MAX_ORDER)
+				pfn += (1UL << freepage_order) - 1;
+			continue;
+		}
+
+		page_ext = lookup_page_ext(page);
+		if (unlikely(!page_ext))
+			continue;
+
+		/*
+		 * Some pages could be missed by concurrent allocation or free,
+		 * because we don't hold the zone lock.
+		 */
+		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+			continue;
+
+		page_owner = get_page_owner(page_ext);
+
+		/*
+		 * Access to page_ext->handle isn't synchronous so we should
+		 * be careful to access it.
+		 */
+		handle = READ_ONCE(page_owner->handle);
+		if (!handle)
+			continue;
+
+		__update_max_page_owner(pfn, page, page_owner, handle);
+	}
+
+	show_max_hit_page();
+
+	return 0;
+}

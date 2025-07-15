@@ -270,6 +270,7 @@ config COMPACTION
           disable this option unless there really is a strong reason for
           it and then we would be really interested to hear about that at
           linux-mm@kvack.org.
+
 config PROCESS_RECLAIM
 	bool "Enable process reclaim"
 	depends on PROC_FS
@@ -362,6 +363,7 @@ config MMU_NOTIFIER
 config KSM
 	bool "Enable KSM for page merging"
 	depends on MMU
+	depends on !MTK_ENABLE_AGO
 	help
 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
 	  of an application's address space that an app has advised may be
@@ -553,7 +555,6 @@ config CMA
 config ZONE_MOVABLE_CMA
 	bool "Contiguous Memory Allocator by ZONE_MOVABLE"
 	select CMA
-	select CMA_DEBUG
 	depends on HAVE_MEMBLOCK && MMU && MTK_MEM
 	default y
 	help
@@ -653,6 +654,7 @@ config ZSMALLOC
 	tristate "Memory allocator for compressed pages"
 	depends on MMU
 	default n
+	select PGTABLE_MAPPING if (ARM || ARM64)
 	help
 	  zsmalloc is a slab-based memory allocator designed to store
 	  compressed RAM pages.  zsmalloc uses virtual memory mapping
@@ -677,7 +679,7 @@ config PGTABLE_MAPPING
 config ZSMALLOC_STAT
 	bool "Export zsmalloc statistics"
 	depends on ZSMALLOC
-	
+	select DEBUG_FS
 	help
 	  This option enables code in the zsmalloc to collect various
 	  statistics about whats happening in zsmalloc and exports that
@@ -712,6 +714,7 @@ config DEFERRED_STRUCT_PAGE_INIT
 	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	depends on NO_BOOTMEM && MEMORY_HOTPLUG
 	depends on !FLATMEM
+	depends on !NEED_PER_CPU_KM
 	help
 	  Ordinarily all struct pages are initialised during early boot in a
 	  single thread. On very large machines this can take a considerable
@@ -750,6 +753,8 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
+config ARCH_HAS_PTE_SPECIAL
+	bool
 config FRAME_VECTOR
 	bool
 
@@ -757,3 +762,12 @@ config ARCH_USES_HIGH_VMA_FLAGS
 	bool
 config ARCH_HAS_PKEYS
 	bool
+
+#ifdef VENDOR_EDIT
+#/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-07-07, add alloc wait monitor support*/
+config OPPO_MEM_MONITOR
+	bool "memory monitor "
+	default n
+	help
+	 memory monitor.
+#endif /*VENDOR_EDIT*/

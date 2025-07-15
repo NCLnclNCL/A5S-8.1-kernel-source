@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/rmap.h>
 #include <linux/uaccess.h>
-#include <linux/sched.h>
 /* Kui.Zhang@PSW.BSP.Kernel.Performance, 2019-01-01,
  * Create /proc/process_reclaim interface for process reclaim. */
 #include <linux/proc_fs.h>

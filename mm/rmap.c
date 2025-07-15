@@ -304,6 +304,77 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 	return -ENOMEM;
 }
 
+#ifdef VENDOR_EDIT
+/*wanghao@BSP.Kernel.Function 2019/10/10 add for avoid apk recursive fork*/
+#define RECURSIVE_MAX_FORK_TIME 30
+int happend_times = 0;		//total recursive fork times
+pid_t fork_pid_child = 0;				//last time recursive fork pid
+pid_t fork_pid_father = 0;				//last time recursive fork ppid
+
+/*
+ * Attach the anon_vmas from src to dst.
+ * Returns length of anon_vma_chain on success, -ENOMEM on failure.
+ *
+ * If dst->anon_vma is NULL this function tries to find and reuse existing
+ * anon_vma which has no vmas and only one child anon_vma. This prevents
+ * degradation of anon_vma hierarchy to endless linear chain in case of
+ * constantly forking task. On the other hand, an anon_vma with more than one
+ * child isn't reused even if there was no alive vma, thus rmap walker has a
+ * good chance of avoiding scanning the whole hierarchy when it searches where
+ * page is mapped.
+ */
+int anon_vma_clone_oppo(struct vm_area_struct *dst, struct vm_area_struct *src)
+{
+	struct anon_vma_chain *avc, *pavc;
+	struct anon_vma *root = NULL;
+	int length = 0;
+
+	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+		struct anon_vma *anon_vma;
+
+		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+		if (unlikely(!avc)) {
+			unlock_anon_vma_root(root);
+			root = NULL;
+			avc = anon_vma_chain_alloc(GFP_KERNEL);
+			if (!avc)
+				goto enomem_failure;
+		}
+		anon_vma = pavc->anon_vma;
+		root = lock_anon_vma_root(root, anon_vma);
+		anon_vma_chain_link(dst, avc, anon_vma);
+		length++;
+
+		/*
+		 * Reuse existing anon_vma if its degree lower than two,
+		 * that means it has no vma and only one anon_vma child.
+		 *
+		 * Do not chose parent anon_vma, otherwise first child
+		 * will always reuse it. Root anon_vma is never reused:
+		 * it has self-parent reference and at least one child.
+		 */
+		if (!dst->anon_vma && anon_vma != src->anon_vma &&
+				anon_vma->degree < 2)
+			dst->anon_vma = anon_vma;
+	}
+	if (dst->anon_vma)
+		dst->anon_vma->degree++;
+	unlock_anon_vma_root(root);
+	return length;
+
+ enomem_failure:
+	/*
+	 * dst->anon_vma is dropped here otherwise its degree can be incorrectly
+	 * decremented in unlink_anon_vmas().
+	 * We can safely do this because callers of anon_vma_clone() don't care
+	 * about dst->anon_vma if anon_vma_clone() failed.
+	 */
+	dst->anon_vma = NULL;
+	unlink_anon_vmas(dst);
+	return -ENOMEM;
+}
+#endif
+
 /*
  * Attach vma to its own anon_vma, as well as to the anon_vmas that
  * the corresponding VMA in the parent process is attached to.
@@ -326,9 +397,23 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	 * First, attach the new VMA to the parent VMA's anon_vmas,
 	 * so rmap can find non-COWed pages in child processes.
 	 */
+	#ifdef VENDOR_EDIT
+	/*wanghao@BSP.Kernel.Function 2019/10/10 add for avoid apk recursive fork*/
+	error = anon_vma_clone_oppo(vma, pvma);
+	if (error < 0)
+		return error;
+	else if (error > RECURSIVE_MAX_FORK_TIME) {
+		pr_err("[anon_vma_fork]%d: recursive fork more then 30 timges, pid is %d[%s]\n", __LINE__, get_current()->pid, get_current()->comm);
+		happend_times++;
+		fork_pid_child = get_current()->pid;
+		fork_pid_father = get_current()->parent->pid;
+		return -ENOMEM;
+	}
+	#else
 	error = anon_vma_clone(vma, pvma);
 	if (error)
 		return error;
+	#endif
 
 	/* An existing anon_vma has been reused, all done then. */
 	if (vma->anon_vma)
@@ -1476,6 +1561,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	pte_t pteval;
 	spinlock_t *ptl;
 	int ret = SWAP_AGAIN;
+	unsigned long sh_address;
+	bool pmd_sharing_possible = false;
+	unsigned long spmd_start, spmd_end;
 	struct rmap_private *rp = arg;
 	enum ttu_flags flags = rp->flags;
 
@@ -1489,6 +1577,32 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		/* check if we have anything to do after split */
 		if (page_mapcount(page) == 0)
 			goto out;
+	}
+
+	/*
+	 * Only use the range_start/end mmu notifiers if huge pmd sharing
+	 * is possible.  In the normal case, mmu_notifier_invalidate_page
+	 * is sufficient as we only unmap a page.  However, if we unshare
+	 * a pmd, we will unmap a PUD_SIZE range.
+	 */
+	if (PageHuge(page)) {
+		spmd_start = address;
+		spmd_end = spmd_start + vma_mmu_pagesize(vma);
+
+		/*
+		 * Check if pmd sharing is possible.  If possible, we could
+		 * unmap a PUD_SIZE range.  spmd_start/spmd_end will be
+		 * modified if sharing is possible.
+		 */
+		adjust_range_if_pmd_sharing_possible(vma, &spmd_start,
+								&spmd_end);
+		if (spmd_end - spmd_start != vma_mmu_pagesize(vma)) {
+			sh_address = address;
+
+			pmd_sharing_possible = true;
+			mmu_notifier_invalidate_range_start(vma->vm_mm,
+							spmd_start, spmd_end);
+		}
 	}
 
 	pte = page_check_address(page, mm, address, &ptl,
@@ -1523,6 +1637,30 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			goto out_unmap;
 		}
   	}
+
+	/*
+	 * Call huge_pmd_unshare to potentially unshare a huge pmd.  Pass
+	 * sh_address as it will be modified if unsharing is successful.
+	 */
+	if (PageHuge(page) && huge_pmd_unshare(mm, &sh_address, pte)) {
+		/*
+		 * huge_pmd_unshare unmapped an entire PMD page.  There is
+		 * no way of knowing exactly which PMDs may be cached for
+		 * this mm, so flush them all.  spmd_start/spmd_end cover
+		 * this PUD_SIZE range.
+		 */
+		flush_cache_range(vma, spmd_start, spmd_end);
+		flush_tlb_range(vma, spmd_start, spmd_end);
+
+		/*
+		 * The ref count of the PMD page was dropped which is part
+		 * of the way map counting is done for shared PMDs.  When
+		 * there is no other sharing, huge_pmd_unshare returns false
+		 * and we will unmap the actual page and drop map count
+		 * to zero.
+		 */
+		goto out_unmap;
+	}
 
 	/* Nuke the page table entry. */
 	flush_cache_page(vma, address, page_to_pfn(page));
@@ -1621,6 +1759,9 @@ out_unmap:
 	if (ret != SWAP_FAIL && ret != SWAP_MLOCK && !(flags & TTU_MUNLOCK))
 		mmu_notifier_invalidate_page(mm, address);
 out:
+	if (pmd_sharing_possible)
+		mmu_notifier_invalidate_range_end(vma->vm_mm,
+							spmd_start, spmd_end);
 	return ret;
 }
 
@@ -1647,6 +1788,7 @@ static int page_mapcount_is_zero(struct page *page)
 {
 	return !page_mapcount(page);
 }
+
 
 #if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
 /* Kui.Zhang@PSW.TEC.Kernel.Performance. 2019/01/16,
@@ -1769,7 +1911,6 @@ int try_to_munlock(struct page *page)
 		 */
 		.target_vma = NULL,
 #endif
-
 	};
 
 	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
@@ -1830,6 +1971,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 	pgoff_t pgoff;
 	struct anon_vma_chain *avc;
 	int ret = SWAP_AGAIN;
+
 #if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
 	/* Kui.Zhang@PSW.TEC.Kernel.Performance. 2019/01/16,
 	 * Doing relcaim of the special vma
@@ -1839,6 +1981,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		return rwc->rmap_one(page, rwc->target_vma, address, rwc->arg);
 	}
 #endif
+
 	if (locked) {
 		anon_vma = page_anon_vma(page);
 		/* anon_vma disappear under us? */
