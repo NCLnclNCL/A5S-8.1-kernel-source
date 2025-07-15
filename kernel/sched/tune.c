@@ -26,11 +26,14 @@ unsigned int sysctl_sched_cfs_boost __read_mostly;
 static int default_stune_threshold;
 bool global_negative_flag;
 
+/* A lock for set stune_task_threshold */
+raw_spinlock_t stune_lock;
+
 static struct target_cap schedtune_target_cap[16];
 static int cpu_cluster_nr;
 
 extern struct reciprocal_value schedtune_spc_rdiv;
-extern struct target_nrg schedtune_target_nrg;
+struct target_nrg schedtune_target_nrg;
 
 /* Performance Boost region (B) threshold params */
 static int perf_boost_idx;
@@ -120,6 +123,64 @@ __schedtune_accept_deltas(int nrg_delta, int cap_delta,
 
 /*
  * EAS scheduler tunables for task groups.
+ *
+ * When CGroup support is enabled, we have to synchronize two different
+ * paths:
+ *  - slow path: where CGroups are created/updated/removed
+ *  - fast path: where tasks in a CGroups are accounted
+ *
+ * The slow path tracks (a limited number of) CGroups and maps each on a
+ * "boost_group" index. The fastpath accounts tasks currently RUNNABLE on each
+ * "boost_group".
+ *
+ * Once a new CGroup is created, a boost group idx is assigned and the
+ * corresponding "boost_group" marked as valid on each CPU.
+ * Once a CGroup is release, the corresponding "boost_group" is marked as
+ * invalid on each CPU. The CPU boost value (boost_max) is aggregated by
+ * considering only valid boost_groups with a non null tasks counter.
+ *
+ * .:: Locking strategy
+ *
+ * The fast path uses a spin lock for each CPU boost_group which protects the
+ * tasks counter.
+ *
+ * The "valid" and "boost" values of each CPU boost_group is instead
+ * protected by the RCU lock provided by the CGroups callbacks. Thus, only the
+ * slow path can access and modify the boost_group attribtues of each CPU.
+ * The fast path will catch up the most updated values at the next scheduling
+ * event (i.e. enqueue/dequeue).
+ *
+ *                                                        |
+ *                                             SLOW PATH  |   FAST PATH
+ *                              CGroup add/update/remove  |   Scheduler enqueue/dequeue events
+ *                                                        |
+ *                                                        |
+ *                                                        |     DEFINE_PER_CPU(struct boost_groups)
+ *                                                        |     +--------------+----+---+----+----+
+ *                                                        |     |  idle        |    |   |    |    |
+ *                                                        |     |  boost_max   |    |   |    |    |
+ *                                                        |  +---->lock        |    |   |    |    |
+ *  struct schedtune                  allocated_groups    |  |  |  group[    ] |    |   |    |    |
+ *  +------------------------------+         +-------+    |  |  +--+---------+-+----+---+----+----+
+ *  | idx                          |         |       |    |  |     |  valid  |
+ *  | boots / prefer_idle          |         |       |    |  |     |  boost  |
+ *  | perf_{boost/constraints}_idx | <---------+(*)  |    |  |     |  tasks  | <------------+
+ *  | css                          |         +-------+    |  |     +---------+              |
+ *  +-+----------------------------+         |       |    |  |     |         |              |
+ *    ^                                      |       |    |  |     |         |              |
+ *    |                                      +-------+    |  |     +---------+              |
+ *    |                                      |       |    |  |     |         |              |
+ *    |                                      |       |    |  |     |         |              |
+ *    |                                      +-------+    |  |     +---------+              |
+ *    | zmalloc                              |       |    |  |     |         |              |
+ *    |                                      |       |    |  |     |         |              |
+ *    |                                      +-------+    |  |     +---------+              |
+ *    +                              BOOSTGROUPS_COUNT    |  |     BOOSTGROUPS_COUNT        |
+ *  schedtune_boostgroup_init()                           |  +                              |
+ *                                                        |  schedtune_{en,de}queue_task()  |
+ *                                                        |                                 +
+ *                                                        |          schedtune_tasks_update()
+ *                                                        |
  */
 
 /* SchdTune tunables for a group of tasks */
@@ -145,6 +206,9 @@ struct schedtune {
 
 	/* Add capacity_min for task floor setting */
 	int capacity_min;
+
+	/* Cpu util clamping */
+	struct uclamp_se uclamp[UCLAMP_CNT];
 };
 
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
@@ -160,6 +224,16 @@ static inline struct schedtune *task_schedtune(struct task_struct *tsk)
 static inline struct schedtune *parent_st(struct schedtune *st)
 {
 	return css_st(st->css.parent);
+}
+
+unsigned int uclamp_st_min(struct task_struct *tsk)
+{
+	unsigned int val;
+
+	rcu_read_lock();
+	val =  task_schedtune(tsk)->uclamp[UCLAMP_MIN].value;
+	rcu_read_unlock();
+	return val;
 }
 
 /*
@@ -179,6 +253,25 @@ root_schedtune = {
 	.prefer_idle = 0,
 	.capacity_min = 0,
 };
+
+inline struct uclamp_se *root_schedtune_uclamp(int clamp_id)
+{
+	return &root_schedtune.uclamp[clamp_id];
+}
+
+struct uclamp_se *schedtune_uclamp(struct task_struct *tsk,
+						int clamp_id)
+{
+	struct cgroup_subsys_state *css;
+	struct uclamp_se *se;
+
+	rcu_read_lock();
+	css = task_css(tsk, schedtune_cgrp_id);
+	se = &css_st(css)->uclamp[clamp_id];
+	rcu_read_unlock();
+
+	return se;
+}
 
 int
 schedtune_accept_deltas(int nrg_delta, int cap_delta,
@@ -223,7 +316,7 @@ schedtune_accept_deltas(int nrg_delta, int cap_delta,
  *    value
  */
 #ifdef CONFIG_MTK_IO_BOOST
-#define BOOSTGROUPS_COUNT 6
+#define BOOSTGROUPS_COUNT 7
 #else
 #define BOOSTGROUPS_COUNT 5
 #endif
@@ -244,7 +337,6 @@ static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
  */
 struct boost_groups {
 	/* Maximum boost value for all RUNNABLE tasks on a CPU */
-	bool idle;
 	int boost_max;
 	/*
 	 * Maximum capacity_min for all RUNNABLE tasks on a CPU,
@@ -252,6 +344,8 @@ struct boost_groups {
 	 */
 	int max_capacity_min;
 	struct {
+		/* True when this boost group maps an actual cgroup */
+		bool valid;
 		/* The boost for tasks on that boost group */
 		int boost;
 		/* Count of RUNNABLE tasks on that boost group */
@@ -280,6 +374,11 @@ schedtune_cpu_update(int cpu)
 	boost_max = bg->group[0].boost;
 	max_capacity_min = bg->group[0].capacity_min;
 	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
+
+		/* Ignore non boostgroups not mapping a cgroup */
+		if (!bg->group[idx].valid)
+			continue;
+
 		/*
 		 * A boost group affects a CPU only if it has
 		 * RUNNABLE tasks on that CPU
@@ -291,6 +390,7 @@ schedtune_cpu_update(int cpu)
 		max_capacity_min =
 			max(max_capacity_min, bg->group[idx].capacity_min);
 	}
+
 	/* Ensures boost_max is non-negative when all cgroup boost values
 	 * are neagtive. Avoids under-accounting of cpu capacity which may cause
 	 * task stacking and frequency spikes.*/
@@ -321,6 +421,9 @@ schedtune_boostgroup_update(int idx, int boost)
 	/* Update per CPU boost groups */
 	for_each_possible_cpu(cpu) {
 		bg = &per_cpu(cpu_boost_groups, cpu);
+
+		/* CGroups are never associated to non active cgroups */
+		BUG_ON(!bg->group[idx].valid);
 
 		/*
 		 * Keep track of current boost values to compute the per CPU
@@ -618,7 +721,11 @@ int schedtune_task_boost(struct task_struct *p)
 	st = task_schedtune(p);
 	task_boost = st->boost;
 	rcu_read_unlock();
-
+#ifdef VENDOR_EDIT
+    if (sysctl_uifirst_enabled && sysctl_launcher_boost_enabled && p->static_ux) {
+        task_boost = 60;
+    }
+#endif
 	return task_boost;
 }
 
@@ -659,6 +766,11 @@ int schedtune_prefer_idle(struct task_struct *p)
 	rcu_read_lock();
 	st = task_schedtune(p);
 	prefer_idle = st->prefer_idle;
+#ifdef VENDOR_EDIT
+    if (sysctl_uifirst_enabled && sysctl_launcher_boost_enabled && p->static_ux) {
+        prefer_idle = 1;
+    }
+#endif
 	rcu_read_unlock();
 
 	return prefer_idle;
@@ -678,6 +790,13 @@ prefer_idle_write(struct cgroup_subsys_state *css, struct cftype *cft,
 {
 	struct schedtune *st = css_st(css);
 	st->prefer_idle = prefer_idle;
+
+#if MET_STUNE_DEBUG
+	/* top-app */
+	if (st->idx == 3)
+		met_tag_oneshot(0, "sched_user_top_prefer_idle",
+				st->prefer_idle);
+#endif
 
 	return 0;
 }
@@ -700,6 +819,10 @@ capacity_min_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		printk_deferred("warning: capacity_min should be 0~1024\n");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_CPU_FREQ_GOV_SCHEDPLUS
+	set_cap_min_freq(capacity_min);
+#endif
 
 	rcu_read_lock();
 	st->capacity_min = capacity_min;
@@ -776,7 +899,6 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		/* boost4xxx: no boost only capacity_min */
 		boost = 0;
 
-		stune_task_threshold = default_stune_threshold;
 		break;
 	case 3:
 		/* a floor of cpu frequency */
@@ -802,22 +924,18 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 				min_boost_freq[1] = 0;
 		}
 #endif
-		stune_task_threshold = default_stune_threshold;
 		break;
 	case 2:
 		/* dvfs short cut */
 		boost -= 2000;
-		stune_task_threshold = default_stune_threshold;
 		dvfs_on_demand = true;
 		break;
 	case 1:
 		/* boost all tasks */
 		boost -= 1000;
-		stune_task_threshold = 0;
 		break;
 	case 0:
 		/* boost big tasks only */
-		stune_task_threshold = default_stune_threshold;
 		break;
 	default:
 		printk_deferred("warning: perf ctrl no should be 0~1\n");
@@ -905,6 +1023,75 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	return 0;
 }
 
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+static inline u64 cpu_uclamp_read(struct cgroup_subsys_state *css,
+				  enum uclamp_id clamp_id)
+{
+	struct schedtune *st;
+	u64 util_clamp;
+
+	rcu_read_lock();
+	st = css_st(css);
+	util_clamp = st->uclamp[clamp_id].value;
+	rcu_read_unlock();
+
+	return scale_to_percent(util_clamp);
+}
+
+static u64 cpu_util_min_read_u64(struct cgroup_subsys_state *css,
+				 struct cftype *cft)
+{
+	return cpu_uclamp_read(css, UCLAMP_MIN);
+}
+
+static int cpu_util_min_write_u64(struct cgroup_subsys_state *css,
+				  struct cftype *cftype, u64 min_value)
+{
+	struct uclamp_se *uc_se;
+	struct schedtune *st;
+	int ret = -EINVAL;
+
+	/* Check range and scale to internal representation */
+	if (min_value > 100)
+		return -ERANGE;
+
+	min_value =  scale_from_percent(min_value);
+#ifdef CONFIG_MTK_UNIFY_POWER
+	min_value = search_opp_cappacity(min_value);
+#endif
+
+	mutex_lock(&uclamp_mutex);
+	rcu_read_lock();
+
+	st = css_st(css);
+	if (st->uclamp[UCLAMP_MIN].value == min_value) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Update TG's reference count */
+	uc_se = &st->uclamp[UCLAMP_MIN];
+	ret = uclamp_group_get(NULL, css, UCLAMP_MIN, uc_se, min_value);
+
+out:
+	rcu_read_unlock();
+	mutex_unlock(&uclamp_mutex);
+
+	return ret;
+}
+
+unsigned long uclamp_ts_min(struct task_struct *task)
+{
+	return task_schedtune(task)->uclamp[UCLAMP_MIN].value;
+}
+#else
+unsigned long uclamp_ts_min(struct task_struct *task)
+{
+	return 0;
+}
+
+#endif
+
 static struct cftype files[] = {
 	{
 		.name = "boost",
@@ -921,27 +1108,97 @@ static struct cftype files[] = {
 		.read_u64 = capacity_min_read,
 		.write_u64 = capacity_min_write,
 	},
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+	{
+		.name = "uclamp_min",
+		.read_u64 = cpu_util_min_read_u64,
+		.write_u64 = cpu_util_min_write_u64,
+	},
+#endif
 	{ }	/* terminate */
 };
 
-static int
-schedtune_boostgroup_init(struct schedtune *st)
+static void
+schedtune_boostgroup_init(struct schedtune *st, int idx)
 {
 	struct boost_groups *bg;
 	int cpu;
 
-	/* Keep track of allocated boost groups */
-	allocated_group[st->idx] = st;
-
-	/* Initialize the per CPU boost groups */
+	/* Initialize per CPUs boost group support */
 	for_each_possible_cpu(cpu) {
 		bg = &per_cpu(cpu_boost_groups, cpu);
-		bg->group[st->idx].boost = 0;
-		bg->group[st->idx].tasks = 0;
+		bg->group[idx].boost = 0;
+		bg->group[idx].valid = true;
 	}
 
-	return 0;
+	/* Keep track of allocated boost groups */
+	allocated_group[idx] = st;
+	st->idx = idx;
 }
+
+#if defined(CONFIG_UCLAMP_TASK_GROUP)
+/**
+ * alloc_uclamp_sched_group: initialize a new TG's for utilization clamping
+ * @st: the newly created schedtune
+ * @parent: its parent schedtune
+ *
+ * A newly created schedtuen inherits its utilization clamp values, for all
+ * clamp indexes, from its parent schedtune.
+ * This ensures that its values are properly initialized and that the task
+ * group is accounted in the same parent's group index.
+ *
+ * Return: !0 on error
+ */
+static inline int alloc_uclamp_sched_group(struct schedtune *st,
+					   struct schedtune *parent)
+{
+	struct uclamp_se *uc_se;
+	int clamp_id;
+	int ret = 1;
+
+	for (clamp_id = 0; clamp_id < UCLAMP_CNT; ++clamp_id) {
+		uc_se = &st->uclamp[clamp_id];
+
+		uc_se->value = parent->uclamp[clamp_id].value;
+		uc_se->group_id = UCLAMP_NONE;
+
+		if (uclamp_group_get(NULL, NULL, clamp_id, uc_se,
+				     parent->uclamp[clamp_id].value)) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+out:
+	return ret;
+}
+
+/**
+ * release_uclamp_sched_group: release utilization clamp references of a TG
+ * @st: the schedtune being removed
+ *
+ * An empty schedtune can be removed only when it has no more tasks or child
+ * groups. This means that we can also safely release all the reference
+ * counting to clamp groups.
+ */
+static inline void free_uclamp_sched_group(struct schedtune *st)
+{
+	struct uclamp_se *uc_se;
+	int clamp_id;
+
+	for (clamp_id = 0; clamp_id < UCLAMP_CNT; ++clamp_id) {
+		uc_se = &st->uclamp[clamp_id];
+		uclamp_group_put(clamp_id, uc_se->group_id);
+	}
+}
+#else /* CONFIG_UCLAMP_TASK_GROUP */
+static inline void free_uclamp_sched_group(struct schedtune *tg) { }
+static inline int alloc_uclamp_sched_group(struct schedtune *st,
+					   struct schedtune *parent)
+{
+	return 1;
+}
+#endif
 
 static struct cgroup_subsys_state *
 schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
@@ -973,14 +1230,16 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 		goto out;
 
 	/* Initialize per CPUs boost group support */
-	st->idx = idx;
-	if (schedtune_boostgroup_init(st))
-		goto release;
+	schedtune_boostgroup_init(st, idx);
+
+	if (!alloc_uclamp_sched_group(st, css_st(parent_css)))
+		goto err;
 
 	return &st->css;
 
-release:
+err:
 	kfree(st);
+
 out:
 	return ERR_PTR(-ENOMEM);
 }
@@ -988,9 +1247,16 @@ out:
 static void
 schedtune_boostgroup_release(struct schedtune *st)
 {
-	/* Reset this boost group */
-	schedtune_boostgroup_update(st->idx, 0);
-	schedtune_boostgroup_update_capacity_min(st->idx, 0);
+	struct boost_groups *bg;
+	int cpu;
+
+	/* Reset per CPUs boost group support */
+	for_each_possible_cpu(cpu) {
+		bg = &per_cpu(cpu_boost_groups, cpu);
+		bg->group[st->idx].valid = false;
+		bg->group[st->idx].boost = 0;
+		bg->group[st->idx].capacity_min = 0;
+	}
 
 	/* Keep track of allocated boost groups */
 	allocated_group[st->idx] = NULL;
@@ -1001,6 +1267,8 @@ schedtune_css_free(struct cgroup_subsys_state *css)
 {
 	struct schedtune *st = css_st(css);
 
+	free_uclamp_sched_group(st);
+	/* Release per CPUs boost group support */
 	schedtune_boostgroup_release(st);
 	kfree(st);
 }
@@ -1024,6 +1292,7 @@ schedtune_init_cgroups(void)
 	for_each_possible_cpu(cpu) {
 		bg = &per_cpu(cpu_boost_groups, cpu);
 		memset(bg, 0, sizeof(struct boost_groups));
+		bg->group[0].valid = true;
 		raw_spin_lock_init(&bg->lock);
 	}
 
@@ -1392,6 +1661,7 @@ schedtune_init(void)
 #else
 	memset(ste->max_pwr, 0, sizeof(ste->max_pwr));
 #endif
+	raw_spin_lock_init(&stune_lock);
 
 	rcu_read_lock();
 
@@ -1410,8 +1680,10 @@ schedtune_init(void)
 		}
 		default_stune_threshold = sge_core->cap_states[0].cap;
 
-		if (default_stune_threshold)
+		if (default_stune_threshold) {
+			set_stune_task_threshold(-1);
 			break;
+		}
 	}
 #else
 	sd = rcu_dereference(per_cpu(sd_ea, cpumask_first(cpu_online_mask)));

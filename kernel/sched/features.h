@@ -93,3 +93,26 @@ SCHED_FEAT(SCHED_HMP, true)
 #else
 SCHED_FEAT(SCHED_HMP, false)
 #endif
+
+SCHED_FEAT(SCHED_MTK_EAS, true)
+/*
+ * Minimum capacity capping. Keep track of minimum capacity factor when
+ * minimum frequency available to a policy is modified.
+ * If enabled, this can be used to inform the scheduler about capacity
+ * restrictions.
+ */
+SCHED_FEAT(MIN_CAPACITY_CAPPING, false)
+
+/*
+ * Enforce the priority of candidates selected by find_best_target()
+ * ON: If the target CPU saves any energy, use that.
+ * OFF: Use whichever of target or backup saves most.
+ */
+SCHED_FEAT(FBT_STRICT_ORDER, true)
+
+/*
+ * Assign newly forked task util. New value designed from task's
+ * priority and cfs rq's current average of util/weight
+ * in post_init_entity_util_avg.
+ */
+SCHED_FEAT(POST_INIT_UTIL, false)
