@@ -52,6 +52,7 @@
 
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/loadavg.h>
 #include <linux/uidgid.h>
 #include <linux/cred.h>
 
