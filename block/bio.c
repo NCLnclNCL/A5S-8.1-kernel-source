@@ -42,9 +42,9 @@
  * break badly! cannot be bigger than what you can fit into an
  * unsigned short
  */
-#define BV(x) { .nr_vecs = x, .name = "biovec-"__stringify(x) }
+#define BV(x, n) { .nr_vecs = x, .name = "biovec-"#n }
 static struct biovec_slab bvec_slabs[BVEC_POOL_NR] __read_mostly = {
-	BV(1), BV(4), BV(16), BV(64), BV(128), BV(BIO_MAX_PAGES),
+	BV(1, 1), BV(4, 4), BV(16, 16), BV(64, 64), BV(128, 128), BV(BIO_MAX_PAGES, max),
 };
 #undef BV
 
@@ -155,7 +155,7 @@ out:
 
 unsigned int bvec_nr_vecs(unsigned short idx)
 {
-	return bvec_slabs[idx].nr_vecs;
+	return bvec_slabs[--idx].nr_vecs;
 }
 
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned int idx)
@@ -915,6 +915,9 @@ void bio_advance(struct bio *bio, unsigned bytes)
 		bio_integrity_advance(bio, bytes);
 
 	bio_advance_iter(bio, &bio->bi_iter, bytes);
+
+	/* also advance bc_iv for HIE */
+	bio->bi_crypt_ctx.bc_iv += (bytes >> PAGE_SHIFT);
 }
 EXPORT_SYMBOL(bio_advance);
 
@@ -1224,8 +1227,11 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 			}
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes)
+		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes) {
+			if (!map_data)
+				__free_page(page);
 			break;
+		}
 
 		len -= bytes;
 		offset = 0;
@@ -1786,6 +1792,14 @@ again:
 		bio = __bio_chain_endio(bio);
 		goto again;
 	}
+#ifdef CONFIG_OPLUS_FEATURE_EXT4_DEFRAG
+	/* yanwu@TECH.Storage.FS.EXT4, 2020/02/29, support ext4 defrag */
+	if (bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev), bio,
+					 bio->bi_error);
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+	}
+#endif
 
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
@@ -1832,6 +1846,11 @@ struct bio *bio_split(struct bio *bio, int sectors,
 		bio_integrity_trim(split, 0, sectors);
 
 	bio_advance(bio, split->bi_iter.bi_size);
+
+#ifdef CONFIG_OPLUS_FEATURE_EXT4_DEFRAG
+	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
+		bio_set_flag(split, BIO_TRACE_COMPLETION);
+#endif
 
 	return split;
 }
@@ -2050,6 +2069,22 @@ void bio_clone_blkcg_association(struct bio *dst, struct bio *src)
 }
 
 #endif /* CONFIG_BLK_CGROUP */
+
+unsigned long bio_bc_iv_get(struct bio *bio)
+{
+	if (bio_bcf_test(bio, BC_IV_CTX))
+		return bio->bi_crypt_ctx.bc_iv;
+
+	if (bio_bcf_test(bio, BC_IV_PAGE_IDX)) {
+		struct page *p;
+
+		p = bio_page(bio);
+		if (p && page_mapping(p))
+			return page_index(p);
+	}
+	return BC_INVALD_IV;
+}
+EXPORT_SYMBOL_GPL(bio_bc_iv_get);
 
 static void __init biovec_init_slabs(void)
 {
