@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <mmprofile.h>
+#include <mmprofile_function.h>
 #include <linux/debugfs.h>
 #include <linux/kthread.h>
 #include "ion_profile.h"
@@ -583,6 +584,7 @@ static int write_mm_page_pool(int high, int order, int cache, size_t size)
 
 static int ion_history_record(void *data)
 {
+	int ret;
 	struct ion_device *dev = g_ion_device;
 	struct rb_node *n;
 	size_t old_total_size = 0;
@@ -594,8 +596,12 @@ static int ion_history_record(void *data)
 			break;
 		}
 
-		wait_event_interruptible(ion_history_wq,
-					 atomic_read(&ion_history_event));
+		ret = wait_event_interruptible(ion_history_wq,
+					       atomic_read(&ion_history_event));
+		if (ret < 0) {
+			IONMSG("%s is waked up error", __func__);
+			continue;
+		}
 		msleep(500);
 		atomic_set(&ion_history_event, 0);
 
@@ -621,8 +627,12 @@ static int ion_history_record(void *data)
 				continue;
 
 			if (g_client_history) {
+				int ret = -1;
 				/* record page pool info */
-				ion_mm_heap_for_each_pool(write_mm_page_pool);
+				ret = ion_mm_heap_for_each_pool(
+					write_mm_page_pool);
+				if (ret < 0)
+					continue;
 
 				if (total_orphaned_size)
 					ion_client_write_record
@@ -667,7 +677,9 @@ static int ion_history_record(void *data)
 
 					ion_client_write_record
 					    (g_client_history, task_comm,
-					     client->dbg_name, size, client);
+					     (*client->dbg_name) ? client->
+						     dbg_name : client->name,
+					     size, client);
 				} else {
 					ion_client_write_record
 					    (g_client_history, client->name,

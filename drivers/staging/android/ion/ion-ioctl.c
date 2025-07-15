@@ -83,8 +83,10 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	ret = validate_ioctl_arg(cmd, &data);
-	if (WARN_ON_ONCE(ret))
+	if (ret) {
+		pr_warn_once("%s: ioctl validate failed\n", __func__);
 		return ret;
+	}
 
 	if (!(dir & _IOC_WRITE))
 		memset(&data, 0, sizeof(data));
@@ -114,6 +116,7 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		handle = ion_handle_get_by_id_nolock(client, data.handle.handle);
 		if (IS_ERR(handle)) {
 			mutex_unlock(&client->lock);
+			IONMSG("%s:ION_IOC_FREE handle is error\n", __func__);
 			return PTR_ERR(handle);
 		}
 		ion_free_nolock(client, handle);

@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <mmprofile.h>
+#include <mmprofile_function.h>
 #include <linux/debugfs.h>
 #include <linux/kthread.h>
 #include "ion_profile.h"
@@ -38,6 +39,7 @@ atomic_t ion_comm_cache_event = ATOMIC_INIT(0);
 
 static int ion_comm_cache_pool(void *data)
 {
+	int ret;
 	int req_cache_size = 0;
 	int cached_size = 0;
 	int cache_buffer = 0;
@@ -48,14 +50,21 @@ static int ion_comm_cache_pool(void *data)
 	ion_cam_heap = ion_drv_get_heap(g_ion_device,
 					ION_HEAP_TYPE_MULTIMEDIA_FOR_CAMERA,
 					1);
+	if (!ion_cam_heap)
+		return -1;
+
 	while (1) {
 		if (kthread_should_stop()) {
 			IONMSG("stop ion history threak\n");
 			break;
 		}
 
-		wait_event_interruptible(ion_comm_wq,
-					 atomic_read(&ion_comm_event));
+		ret = wait_event_interruptible(ion_comm_wq,
+					       atomic_read(&ion_comm_event));
+		if (ret < 0) {
+			IONMSG("%s is waked up error", __func__);
+			continue;
+		}
 		req_cache_size = atomic_read(&ion_comm_event);
 		cache_buffer = atomic_read(&ion_comm_cache_event);
 		atomic_set(&ion_comm_event, 0);
