@@ -514,7 +514,7 @@
 /*Test*/
 #define SENSOR_DRVNAME_IMX135_MIPI_RAW_5MP      "imx135_mipi_raw_5mp"
 #define SENSOR_DRVNAME_IMX135_MIPI_RAW_8MP      "imx135_mipi_raw_8mp"
-
+#define SENSOR_DRVNAME_GC2375H_CHENGXIANGTONG_MIPI_RAW         "gc2375h_chengxiangtong_mipi_raw"
 #define mDELAY(ms)     mdelay(ms)
 #define uDELAY(us)       udelay(us)
 #endif              /* _KD_IMGSENSOR_H */
