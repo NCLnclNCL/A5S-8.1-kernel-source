@@ -105,7 +105,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	int err;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (unlikely((r->mnt.mnt_root->d_inode->i_mapping->flags & INODE_STATE_SUS_MOUNT) && !susfs_is_current_ksu_domain()))
+	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
 		return 0;
 #endif
 
@@ -146,7 +146,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	int err;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (unlikely((r->mnt.mnt_root->d_inode->i_mapping->flags & INODE_STATE_SUS_MOUNT) && !susfs_is_current_ksu_domain()))
+	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
 		return 0;
 #endif
 
@@ -215,7 +215,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	int err;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (unlikely((r->mnt.mnt_root->d_inode->i_mapping->flags & INODE_STATE_SUS_MOUNT) && !susfs_is_current_ksu_domain()))
+	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
 		return 0;
 #endif
 
