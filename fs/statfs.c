@@ -259,7 +259,7 @@ int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
 		return -EINVAL;
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (unlikely(s->s_root->d_inode->i_state & INODE_STATE_SUS_MOUNT)) {
+	if (unlikely(s->s_root->d_inode->i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
 		return -EINVAL;
 	}
 #endif
