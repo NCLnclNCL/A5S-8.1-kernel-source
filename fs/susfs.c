@@ -40,7 +40,7 @@ static int susfs_update_sus_path_inode(char *target_pathname) {
 	struct inode *inode = NULL;
 	const char *dev_type;
 
-	if (kern_path(target_pathname, LOOKUP_FOLLOW, &p)) {
+	if (kern_path(target_pathname, 0, &p)) {
 		SUSFS_LOGE("Failed opening file '%s'\n", target_pathname);
 		return 1;
 	}
@@ -69,9 +69,9 @@ static int susfs_update_sus_path_inode(char *target_pathname) {
 		return 1;
 	}
 
-	if (!(inode->i_state & INODE_STATE_SUS_PATH)) {
+	if (!(inode->i_mapping->flags & INODE_STATE_SUS_PATH)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= INODE_STATE_SUS_PATH;
+		set_bit(AS_FLAGS_SUS_PATH, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
 	}
 	path_put(&p);
@@ -171,9 +171,9 @@ static void susfs_update_sus_mount_inode(char *target_pathname) {
 		return;
 	}
 
-	if (!(inode->i_state & INODE_STATE_SUS_MOUNT)) {
+	if (!(inode->i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= INODE_STATE_SUS_MOUNT;
+		set_bit(AS_FLAGS_SUS_MOUNT, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
 	}
 	path_put(&p);
@@ -243,9 +243,9 @@ int susfs_auto_add_sus_bind_mount(const char *pathname, struct path *path_target
 	}
 	inode = path_target->dentry->d_inode;
 	if (!inode) return 1;
-	if (!(inode->i_state & INODE_STATE_SUS_MOUNT)) {
+	if (!(inode->i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= INODE_STATE_SUS_MOUNT;
+		set_bit(AS_FLAGS_SUS_MOUNT, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
 		SUSFS_LOGI("set SUS_MOUNT inode state for source bind mount path '%s'\n", pathname);
 	}
@@ -287,9 +287,9 @@ set_inode_sus_mount:
 		goto out_path_put;
 		return;
 	}
-	if (!(inode->i_state & INODE_STATE_SUS_MOUNT)) {
+	if (!(i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= INODE_STATE_SUS_MOUNT;
+		set_bit(AS_FLAGS_SUS_MOUNT, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
 		SUSFS_LOGI("set SUS_MOUNT inode state for default KSU mount path '%s'\n", pathname);
 	}
@@ -309,7 +309,7 @@ static int susfs_update_sus_kstat_inode(char *target_pathname) {
 	struct inode *inode = NULL;
 	int err = 0;
 
-	err = kern_path(target_pathname, LOOKUP_FOLLOW, &p);
+	err = kern_path(target_pathname, 0, &p);
 	if (err) {
 		SUSFS_LOGE("Failed opening file '%s'\n", target_pathname);
 		return 1;
@@ -330,9 +330,9 @@ static int susfs_update_sus_kstat_inode(char *target_pathname) {
 		return 1;
 	}
 
-	if (!(inode->i_state & INODE_STATE_SUS_KSTAT)) {
+	if (!(inode->i_mapping->flags & INODE_STATE_SUS_KSTAT)) {
 		spin_lock(&inode->i_lock);
-		inode->i_state |= INODE_STATE_SUS_KSTAT;
+		set_bit(AS_FLAGS_SUS_KSTAT, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
 	}
 	path_put(&p);
@@ -582,7 +582,7 @@ void susfs_auto_add_try_umount_for_bind_mount(struct path *path) {
 #endif
 
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-	if (path->dentry->d_inode->i_state & INODE_STATE_SUS_KSTAT) {
+	if (path->dentry->d_inode->i_mapping->flags & INODE_STATE_SUS_KSTAT) {
 		SUSFS_LOGI("skip adding path to try_umount list as its inode is flagged INODE_STATE_SUS_KSTAT already\n");
 		return;
 	}
@@ -769,7 +769,7 @@ static int susfs_update_open_redirect_inode(struct st_susfs_open_redirect_hlist 
 	}
 
 	spin_lock(&inode_target->i_lock);
-	inode_target->i_state |= INODE_STATE_OPEN_REDIRECT;
+	set_bit(AS_FLAGS_OPEN_REDIRECT, &inode_target->i_mapping->flags);
 	spin_unlock(&inode_target->i_lock);
 
 out_path_put_target:
