@@ -46,6 +46,10 @@
  * task_struct->susfs_last_fake_mnt_id => storing last valid fake mnt_id
  * task_struct->susfs_task_state => storing flag 'TASK_STRUCT_'
  */
+#define AS_FLAGS_SUS_PATH 24
+#define AS_FLAGS_SUS_MOUNT 25
+#define AS_FLAGS_SUS_KSTAT 26
+#define AS_FLAGS_OPEN_REDIRECT 27
 
 #define INODE_STATE_SUS_PATH BIT(24)
 #define INODE_STATE_SUS_MOUNT BIT(25)
