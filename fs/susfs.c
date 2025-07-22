@@ -287,7 +287,7 @@ set_inode_sus_mount:
 		goto out_path_put;
 		return;
 	}
-	if (!(i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
+	if (!(inode->i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
 		spin_lock(&inode->i_lock);
 		set_bit(AS_FLAGS_SUS_MOUNT, &inode->i_mapping->flags);
 		spin_unlock(&inode->i_lock);
