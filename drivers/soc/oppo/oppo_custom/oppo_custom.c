@@ -167,7 +167,7 @@ static void oppo_custome_sync_work(struct work_struct *work)
 			printk("oppo_custome_sync_work: file %s is no exit",OPPOCUSTOM_FILE);
 
 			data->tryTime++;
-			schedule_delayed_work(&data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+			queue_delayed_work(system_power_efficient_wq, &data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 			return;
 		}
 		rc = oppocustom_read(data);
@@ -176,7 +176,7 @@ static void oppo_custome_sync_work(struct work_struct *work)
 			data->inited = 1;
 		}else {
 			data->tryTime++;
-			schedule_delayed_work(&data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+			queue_delayed_work(system_power_efficient_wq, &data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 			return;
 		}
 	}
@@ -189,7 +189,7 @@ static void oppo_custome_sync_work(struct work_struct *work)
 		}
 	}
 	if(data->change_flag > 0)
-		schedule_delayed_work(&data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+		queue_delayed_work(system_power_efficient_wq, &data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 }
 
 static int oppocustom_sync_init(void)
@@ -212,7 +212,7 @@ static int oppocustom_sync_init(void)
 	//mutex_init(&data->wr_lock);
 	INIT_DELAYED_WORK(&data->sync_work, oppo_custome_sync_work);
 	gdata = data;
-	schedule_delayed_work(&data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+	queue_delayed_work(system_power_efficient_wq, &data->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 	return 0;
 }
 
@@ -282,7 +282,7 @@ static ssize_t nPlUsbEnumEnabled_write_proc(struct file *file, const char __user
 		gdata->ConfigInf.nPlUsbEnumEnabled = input;
 		gdata->change_flag++;
 		if(gdata->change_flag == 1){
-			schedule_delayed_work(&gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+			queue_delayed_work(system_power_efficient_wq, &gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 		}
 	}
 
@@ -358,7 +358,7 @@ static ssize_t rpmb_enable_write_proc(struct file *file, const char __user *buf,
 		gdata->ConfigInf.rpmb_enable = RPMB_ENABLE_MAGIC;
 		gdata->change_flag++;
 		if(gdata->change_flag == 1){
-			schedule_delayed_work(&gdata->sync_work, 0);
+			queue_delayed_work(system_power_efficient_wq, &gdata->sync_work, 0);
 		}
 		//wait 1s for emmc write
 		msleep(1000);
@@ -480,7 +480,7 @@ static ssize_t nUsbAutoSwitch_write_proc(struct file *file, const char __user *b
 
 		gdata->change_flag++;
 		if(gdata->change_flag == 1){
-			schedule_delayed_work(&gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+			queue_delayed_work(system_power_efficient_wq, &gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 		}
 	}
 
@@ -568,7 +568,7 @@ static ssize_t Sensor_write_proc(struct file *file, const char __user *buf,
 				memcpy(&gdata->ConfigInf.Sensor[*off],page,count);
 				gdata->change_flag++;
 				if(gdata->change_flag == 1){
-					schedule_delayed_work(&gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+					queue_delayed_work(system_power_efficient_wq, &gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 				}
 				break;
 			}
@@ -691,7 +691,7 @@ static ssize_t OppoCamera_write_proc(struct file *file, const char __user *buf,
 		memcpy(&gdata->ConfigInf.OppoCamera[*off],page,count);
 		gdata->change_flag++;
 		if(gdata->change_flag == 1){
-			schedule_delayed_work(&gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
+			queue_delayed_work(system_power_efficient_wq, &gdata->sync_work, msecs_to_jiffies(OPPOCUSTOM_SYNC_TIME));
 		}
 		*off += count;
  	}
