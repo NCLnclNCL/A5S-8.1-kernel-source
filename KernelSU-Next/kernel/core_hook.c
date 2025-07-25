@@ -363,7 +363,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
 	bool from_manager = ksu_is_manager();
 
 	if (!from_root && !from_manager 
-		&& !(is_allow_su() && is_system_bin_su())) {
+		&& !(is_allow_su())) {
 		// only root or manager can access this interface
 		return 0;
 	}

@@ -1069,7 +1069,7 @@ out_ksu_try_umount:
 		pr_info("uid: %d should not umount!\n", current_uid().val);
 #endif
 	}
-#ifndef CONFIG_KSU_SUSFS_SUS_MOUNT
+#ifndef CONFIG_KSU_SUSFS
 	// check old process's selinux context, if it is not zygote, ignore it!
 	// because some su apps may setuid to untrusted_app but they are in global mount namespace
 	// when we umount for such process, that is a disaster!
