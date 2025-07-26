@@ -604,7 +604,7 @@ static int ksu_execve_ksud_common(const char __user *filename_user,
 {
 	struct filename filename_in, *filename_p;
 	char path[32];
-	
+	long len;
 	// return early if disabled.
 	if (!ksu_execveat_hook) {
 		return 0;
