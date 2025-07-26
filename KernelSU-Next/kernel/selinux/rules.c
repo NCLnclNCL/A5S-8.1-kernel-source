@@ -36,14 +36,18 @@ static struct policydb *get_policydb(void)
 	return db;
 }
 
+static DEFINE_MUTEX(ksu_rules);
+
 void ksu_apply_kernelsu_rules()
 {
+	struct policydb *db;
 	if (!ksu_getenforce()) {
 		pr_info("SELinux permissive or disabled, apply rules!\n");
 	}
 
-	rcu_read_lock();
-	struct policydb *db = get_policydb();
+	mutex_lock(&ksu_rules);
+	
+	db = get_policydb();
 
 	ksu_permissive(db, KERNEL_SU_DOMAIN);
 	ksu_typeattribute(db, KERNEL_SU_DOMAIN, "mlstrustedsubject");
@@ -134,7 +138,8 @@ void ksu_apply_kernelsu_rules()
 	// Allow system server kill su process
 	ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
 	ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
-
+	//add selinux
+	ksu_allow(db, "firmware_file", "tmpfs", "filesystem", "associate");
 #ifdef CONFIG_KSU_SUSFS
 	// Allow umount in zygote process without installing zygisk
 	ksu_allow(db, "zygote", "labeledfs", "filesystem", "unmount");
@@ -143,7 +148,7 @@ void ksu_apply_kernelsu_rules()
 	susfs_set_zygote_sid();
 #endif
 
-	rcu_read_unlock();
+	mutex_unlock(&ksu_rules);x
 }
 
 #define MAX_SEPOL_LEN 128

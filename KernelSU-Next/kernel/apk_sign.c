@@ -28,13 +28,20 @@ static struct apk_sign_key {
 	unsigned size;
 	const char *sha256;
 } apk_sign_keys[] = {
-	{EXPECTED_SIZE, EXPECTED_HASH}, // Official
-	{EXPECTED_SIZE_RSUNTK, EXPECTED_HASH_RSUNTK}, // RKSU
-	{EXPECTED_SIZE_5EC1CFF, EXPECTED_HASH_5EC1CFF}, // MKSU
+	{0x033b, "c371061b19d8c7d7d6133c6a9bafe198fa944e50c1b31c9d8daa8d7f1fc2d2d6"}, // Official
+	{0x396, "f415f4ed9435427e1fdf7f1fccd4dbc07b3d6b8751e4dbcec6f19671f427870b"}, // RKSU
+	{384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4"}, // MKSU
 	{0x391, "fdfdd05fb38a1a48c4d3bf44b6ea728b94f43b877b9bb82ff0754c021d627b2f"}, //wild
 	{0x35c, "947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"}, //sukisu
 	{0x3e6, "79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7"},//ksu next	
-	{ 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549"}
+	{0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549"}, //backlack
+	{0x37d, "50234c79d22d0d2a1dba0ad90d1acffbb2acdc5e80cfcb965b01572f1e538112"}, // luyanci/KernelSU
+	{0x316, "a997df357d1e3a42d3d68f6a2797e3ecec79b21c8972cafc1834c5386920d428"},// YuKongA/KernelSU
+	{0x34e, "a96ec51db032011dffb1184fa6513e421bd9073b3f392b04ecd2e7fdd4798065"} // ZakoZako
+	{0x29c, "946b0557e450a6430a0ba6b6bccee5bc12953ec8735d55e26139b0ec12303b21"} // Neko/KernelSU
+	{0x378, "bf4375841838b6755dce62088fc0ef2310c91d0289ace0cca28b1c788e85fcd2"} // Elysia
+	{0x408, "13bf66558e59cd1891141d78349fa03fc0a73634a0450ec54b1e70473c06a82f"} //XIAOQ/KernelSU
+	
 };
 
 static struct sdesc *init_sdesc(struct crypto_shash *alg)
