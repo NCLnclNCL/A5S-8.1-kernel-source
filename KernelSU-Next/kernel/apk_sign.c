@@ -41,7 +41,8 @@ static struct apk_sign_key {
 	{0x29c, "946b0557e450a6430a0ba6b6bccee5bc12953ec8735d55e26139b0ec12303b21"}, // Neko/KernelSU
 	{0x378, "bf4375841838b6755dce62088fc0ef2310c91d0289ace0cca28b1c788e85fcd2"}, // Elysia
 	{0x408, "13bf66558e59cd1891141d78349fa03fc0a73634a0450ec54b1e70473c06a82f"}, //XIAOQ/KernelSU
-	{0x4ac, "a40da80a59d170caa950cf15c18c454d47a39b26989d8b640ecd745ba71bf5dc"}  //ncl key
+	{0x316, "5e1f32ad78afad7ca4b9b0e3543d628ac1273e3c99cb7924a1c5fa530bcd931b"},  //ncl key
+	{0x316, "e992760bfe4af99d8893cf2010cc1782b0d7172b8bab81d0443b196d5349e8bb"} //key2
 	
 };
 
