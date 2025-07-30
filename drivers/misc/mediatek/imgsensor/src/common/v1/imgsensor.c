@@ -812,7 +812,6 @@ struct match_hardwareinfo hardwareinfo_camera_name[] = {
     {SENSOR_DRVNAME_GC8034_MIPI_RAW, "gc8034_shengtai_i", "0x8044"},
     {SENSOR_DRVNAME_SP2509V_MIPI_RAW, "sp2509v_helitai_i", "0x2509"},
     {SENSOR_DRVNAME_S5K3P9SP_MIPI_RAW, "s5k3p9sp_sunny_i", "0x3109"},    //Added by Hanyue.Shao@Cam.Drv, 2018/11/1, for s5k3p9sp bring up
-    {SENSOR_DRVNAME_GC2375H_CHENGXIANGTONG_MIPI_RAW,"gc2375h_chengxiangtong_iii" , "0x2376"},
     {SENSOR_DRVNAME_HI1336_MIPI_RAW, "hi1336_tongxinda_ii", "0x1336"},
     {SENSOR_DRVNAME_S5K3P9SP_GUANGZHEN_MIPI_RAW, "s5k3p9sp_guangzhen_ii", "0x310a"},
     {SENSOR_DRVNAME_HI846_MIPI_RAW, "hi846_tongxingda_ii", "0x0846"},
