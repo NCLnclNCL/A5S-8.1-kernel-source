@@ -665,7 +665,8 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning,frame-address,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, format-truncation)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
-
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-variable)
+KBUILD_CFLAGS += $(call cc-disable-warning, unused-fuction)
 ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
 #@$(kecho) '  CONFIG_LD_DEAD_CODE_DATA_ELIMINATION enabled'
 KBUILD_CFLAGS	+= $(call cc-option,-ffunction-sections,)
@@ -828,7 +829,15 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 KBUILD_CFLAGS += $(call cc-disable-warning, int-conversion)
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
-
+KBUILD_CFLAGS += $(call cc-disable-warning, int-conversion)
+KBUILD_CFLAGS += $(call cc-disable-warning, attribute-alias)
+KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
+KBUILD_CFLAGS += $(call cc-disable-warning, builtin-declaration-mismatch)
+KBUILD_CFLAGS += $(call cc-disable-warning, stringop-overflow)
+KBUILD_CFLAGS += $(call cc-disable-warning, attributes)
+KBUILD_CFLAGS += $(call cc-disable-warning, fortify-source)
+KBUILD_CFLAGS += $(call cc-disable-warning, ignored-qualifiers)
+KBUILD_CFLAGS += $(call cc-disable-warning, ignored-qualifiers)
 # Make sure -fstack-check isn't enabled (like gentoo apparently did)
 KBUILD_CFLAGS  += $(call cc-option,-fno-stack-check,)
 
