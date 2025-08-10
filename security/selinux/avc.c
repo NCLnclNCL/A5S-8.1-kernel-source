@@ -1008,7 +1008,38 @@ static noinline int avc_denied(u32 ssid, u32 tsid,
 				tsid, tclass, avd->seqno, NULL, flags);
 	return 0;
 }
+#ifdef VENDOR_EDIT
+//Jiemin.Zhu@PSW.Android.SELinux, 2017/11/03, add for skip rutilsdaemon
+static int get_security_context(u32 sid, char **context)
+{
+	u32 context_len;
+	return security_sid_to_context(sid, context, &context_len);
+}
 
+int is_oppo_permissive(u32 ssid, u32 tsid, u32 requested)
+{
+	char *scontext;
+	int rc = 0;
+
+	if (current->flags & PF_KTHREAD)
+		return 0;
+
+	if (0 != from_kuid(&init_user_ns, current_uid()) &&
+			1000 != from_kuid(&init_user_ns, current_uid()))
+		return 0;
+
+	rc = get_security_context(ssid, &scontext);
+	if (!rc) {
+		if (strstr(scontext, "rutilsdaemon")) {
+			kfree(scontext);
+			return 1;
+		}
+		kfree(scontext);
+	}
+ 
+	return 0;
+}
+#endif /* VENDOR_EDIT */
 /*
  * The avc extended permissions logic adds an additional 256 bits of
  * permissions to an avc node when extended permissions for that node are
@@ -1030,7 +1061,11 @@ int avc_has_extended_perms(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 	struct avc_xperms_node local_xp_node;
 	struct avc_xperms_node *xp_node;
 	int rc = 0, rc2;
-
+#ifdef VENDOR_EDIT
+//Jiemin.Zhu@PSW.Android.SELinux, 2017/11/03, add for skip rutilsdaemon
+	if (is_oppo_permissive(ssid, tsid, requested))
+		return 0;
+#endif /* VENDOR_EDIT */
 	xp_node = &local_xp_node;
 	BUG_ON(!requested);
 
@@ -1159,6 +1194,11 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 {
 	struct av_decision avd;
 	int rc, rc2;
+#ifdef VENDOR_EDIT
+//Jiemin.Zhu@PSW.Android.SELinux, 2017/11/03, add for skip rutilsdaemon
+	if (is_oppo_permissive(ssid, tsid, requested))
+		return 0;
+#endif /* VENDOR_EDIT */
 
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
@@ -1174,7 +1214,11 @@ int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
 {
 	struct av_decision avd;
 	int rc, rc2;
-
+#ifdef VENDOR_EDIT
+//Jiemin.Zhu@PSW.Android.SELinux, 2017/11/03, add for skip rutilsdaemon
+	if (is_oppo_permissive(ssid, tsid, requested))
+		return 0;
+#endif /* VENDOR_EDIT */
 	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
 	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc,
