@@ -749,6 +749,17 @@ config ZONE_DEVICE
 	  mapping in an O_DIRECT operation, among other things.
 
 	  If FS_DAX is enabled, then say Y.
+#ifdef VENDOR_EDIT
+#Huacai.Zhou@PSW.BSP.Kernel.MM, 2018/02/11, add support equal reclaim for anon and file pages
+config BALANCE_ANON_FILE_RECLAIM
+	bool "During reclaim treat anon and file backed pages equally"
+	depends on SWAP
+	help
+	  When performing memory reclaim treat anonymous and file backed pages
+	  equally.
+	  Swapping anonymous pages out to memory can be efficient enough to justify
+	  treating anonymous and file backed pages equally.
+#endif /*VENDOR_EDIT*/
 
 config FRAME_VECTOR
 	bool
