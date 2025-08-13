@@ -81,7 +81,11 @@
 //yh@BSP.Storage.Emmc, 2017/10/30 add for work around hynix emmc WP issue
 #include <linux/reboot.h>
 #endif
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/08/06
+// Add for record emmc  driver iowait
+#include <soc/oppo/oppo_healthinfo.h>
+#endif /*VENDOR_EDIT*/
 #define CAPACITY_2G             (2 * 1024 * 1024 * 1024ULL)
 
 /* FIX ME: Check if its reference in mtk_sd_misc.h can be removed */
@@ -3205,7 +3209,11 @@ int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto done;
 	else if (l_card_no_cmd23 == -2)
 		goto stop;
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// xiaosen.he@PSW.BSP.MM, 2018/08/06
+// Add for record emmc  driver iowait
+	mrq->cmdq_request_time_start = ktime_get();
+#endif /*VENDOR_EDIT*/
 	if (host->dma_xfer) {
 		ret = msdc_rw_cmd_using_sync_dma(mmc, cmd, data, mrq);
 		if (ret == -1)
@@ -3889,7 +3897,11 @@ static int msdc_do_request_async(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * need enable autocmd23 for next request
 	 */
 	msdc_dma_setup(host, &host->dma, data->sg, data->sg_len);
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// xiaosen.he@PSW.BSP.MM, 2018/08/06
+// Add for record emmc  driver iowait
+	mrq->cmdq_request_time_start = ktime_get();
+#endif /*VENDOR_EDIT*/
 	msdc_dma_start(host);
 
 #ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
@@ -4784,7 +4796,12 @@ skip:
 		complete(&host->xfer_done);
 	}
 }
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/08/06
+// Add for record  emmc  driver iowait
+extern void ohm_schedstats_record(int sched_type, int fg, u64 delta_ms);
+extern int ohm_flash_type;
+#endif /*VENDOR_EDIT*/
 static irqreturn_t msdc_irq(int irq, void *dev_id)
 {
 	struct msdc_host *host = (struct msdc_host *)dev_id;
@@ -4865,6 +4882,14 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 		/* Finished data transfer */
 		host->data_timeout_cont = 0;
 		data->bytes_xfered = host->dma.xfersz;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/08/06
+// Add for record emmc driver io wait
+		if (OHM_FLASH_TYPE_EMC == ohm_flash_type) {
+			ohm_schedstats_record(OHM_SCHED_EMMCIO, current_is_fg(),
+				ktime_ms_delta(ktime_get(), host->mrq->cmdq_request_time_start));
+		}
+#endif /*VENDOR_EDIT*/
 		msdc_irq_data_complete(host, data, 0);
 		goto out;
 	}

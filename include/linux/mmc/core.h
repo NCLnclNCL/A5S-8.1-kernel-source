@@ -156,6 +156,10 @@ struct mmc_request {
 	/* Allow other commands during this ongoing data transfer or busy wait */
 	bool			cap_cmd_during_tfr;
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+//yh@PSW.BSP.Storage.Emmc, 2018-09-30, Add for monitor cmdq driver wait time
+	ktime_t cmdq_request_time_start;
+#endif
 	ktime_t			io_start;
 #ifdef CONFIG_BLOCK
 	int			lat_hist_enabled;

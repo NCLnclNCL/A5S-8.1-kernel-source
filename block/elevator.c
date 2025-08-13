@@ -575,6 +575,11 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]--;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Add for ioqueue
+		ohm_ioqueue_dec_inflight(q, rq);
+#endif /*VENDOR_EDIT*/
 		if (rq->cmd_flags & REQ_SORTED)
 			elv_deactivate_rq(q, rq);
 	}
@@ -755,6 +760,11 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]--;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Add for ioqueue
+		ohm_ioqueue_dec_inflight(q, rq);
+#endif /*VENDOR_EDIT*/
 		if ((rq->cmd_flags & REQ_SORTED) &&
 		    e->type->ops.elevator_completed_req_fn)
 			e->type->ops.elevator_completed_req_fn(q, rq);

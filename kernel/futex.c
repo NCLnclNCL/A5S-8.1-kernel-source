@@ -2323,6 +2323,13 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 		 * flagged for rescheduling. Only call schedule if there
 		 * is no timeout, or if it has yet to expire.
 		 */
+#ifdef CONFIG_OPPO_HEALTHINFO
+            current->in_futex = 1;
+#endif
+            freezable_schedule();
+#ifdef CONFIG_OPPO_HEALTHINFO
+            current->in_futex = 0;
+#endif
 		if (!timeout || timeout->task)
 			freezable_schedule();
 	}

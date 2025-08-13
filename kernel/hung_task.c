@@ -23,6 +23,11 @@
  */
 int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.TECH.KERNEL, 2018/12/28
+// Add for iowait hung monitor
+#include <soc/oppo/oppo_healthinfo.h>
+#endif
 /*
  * Limit number of tasks checked in a batch.
  *
@@ -149,7 +154,21 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 
 	return can_cont;
 }
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.PLATFORM.KERNEL, 2018/12/19
+// Add for iowait hung ctrl set by QualityProtect APK RUS
+extern bool ohm_iopanic_mon_ctrl;
+extern bool ohm_iopanic_mon_logon;
+extern bool ohm_iopanic_mon_trig;
+extern unsigned int  iowait_hung_cnt;
+extern unsigned int  iowait_panic_cnt;
+#else
+bool ohm_iopanic_mon_ctrl = true;
+bool ohm_iopanic_mon_logon = false;
+bool ohm_iopanic_mon_trig = false;
+unsigned int  iowait_hung_cnt = 0;
+unsigned int  iowait_panic_cnt = 0;
+#endif /*VENDOR_EDIT*/
 /*
  * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
  * a really long time (120 seconds). If that happens, print out

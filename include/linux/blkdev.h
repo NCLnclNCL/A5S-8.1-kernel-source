@@ -426,7 +426,13 @@ struct request_queue {
 	struct list_head	tag_busy_list;
 
 	unsigned int		nr_sorted;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Modify for ioqueue
+	unsigned int		in_flight[4];
+#else
 	unsigned int		in_flight[2];
+#endif /*VENDOR_EDIT*/
 	/*
 	 * Number of active block driver functions for which blk_drain_queue()
 	 * must wait. Must be incremented around functions that unlock the
@@ -607,6 +613,28 @@ static inline void queue_throtl_add_request(struct request_queue *q,
 		else
 			list_add_tail(&rq->fg_list, head);
 	}
+}
+#endif /*VENDOR_EDIT*/
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Add for ioqueue
+static inline void ohm_ioqueue_add_inflight(struct request_queue *q,
+                                            struct request *rq)
+{
+       if (rq->cmd_flags & REQ_FG)
+               q->in_flight[BLK_RW_FG]++;
+       else
+               q->in_flight[BLK_RW_BG]++;
+}
+
+static inline void ohm_ioqueue_dec_inflight(struct request_queue *q,
+                                            struct request *rq)
+{
+       if (rq->cmd_flags & REQ_FG)
+               q->in_flight[BLK_RW_FG]--;
+       else
+               q->in_flight[BLK_RW_BG]--;
 }
 #endif /*VENDOR_EDIT*/
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)

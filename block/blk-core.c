@@ -2567,6 +2567,11 @@ void blk_dequeue_request(struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]++;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// jiheng.xie@PSW.Tech.BSP.Performance, 2019/03/11
+// Add for ioqueue
+		ohm_ioqueue_add_inflight(q, rq);
+#endif /*VENDOR_EDIT*/
 		set_io_start_time_ns(rq);
 	}
 }
