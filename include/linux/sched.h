@@ -313,7 +313,33 @@ extern char ___assert_task_state[1 - 2*!!(
 	smp_store_mb(current->state, (state_value))
 
 #endif
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Liujie.Xie@TECH.Kernel.Sched, 2019/08/29, add for stuck monitor
+struct uifirst_d_state {
+    u64 iowait_ns;
+    u64 downread_ns;
+    u64 downwrite_ns;
+    u64 mutex_ns;
+    u64 other_ns;
+    int cnt;
+};
 
+struct uifirst_s_state{
+    u64 binder_ns;
+    u64 epoll_ns;
+    u64 futex_ns;
+    u64 other_ns;
+    int cnt;
+};
+
+struct oppo_uifirst_monitor_info {
+    u64 runnable_state;
+    u64 ltt_running_state; /* ns */
+    u64 big_running_state; /* ns */
+    struct uifirst_d_state d_state;
+    struct uifirst_s_state s_state;
+};
+#endif
 /* Task command name length */
 #define TASK_COMM_LEN 16
 

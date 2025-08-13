@@ -1678,10 +1678,18 @@ fetch_events:
 
 			xgf_epoll_igather_timer(current, to, 1);
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Liujie.Xie@TECH.Kernel.Sched, 2019/08/29, add for stuck monitor
+            current->in_epoll = 1;
+#endif
 			rc = freezable_schedule_hrtimeout_range(to, slack,
 				HRTIMER_MODE_ABS);
 			if (!rc)
 				timed_out = 1;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Liujie.Xie@TECH.Kernel.Sched, 2019/08/29, add for stuck monitor
+            current->in_epoll = 0;
+#endif
 
 			xgf_epoll_igather_timer(current, to, rc ? -1 : 0);
 
