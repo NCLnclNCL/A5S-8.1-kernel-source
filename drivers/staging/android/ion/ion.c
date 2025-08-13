@@ -37,6 +37,11 @@
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+#include <linux/memory_monitor.h>
+#endif /*VENDOR_EDIT*/
+
 #include "ion.h"
 #include "ion_priv.h"
 #include "compat_ion.h"
@@ -442,7 +447,10 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	struct ion_heap *heap;
 	int ret;
 	unsigned long long start, end;
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+	unsigned long oppo_ionwait_start = jiffies;
+#endif /*VENDOR_EDIT*/
 	pr_debug("%s: len %zu align %zu heap_id_mask %u flags %x\n", __func__,
 		 len, align, heap_id_mask, flags);
 	/*
@@ -531,7 +539,10 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	handle->dbg.user_ts = end;
 	do_div(handle->dbg.user_ts, 1000000);
 	memcpy(buffer->alloc_dbg, client->dbg_name, ION_MM_DBG_NAME_LEN);
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+	oppo_ionwait_monitor(jiffies_to_msecs(jiffies - oppo_ionwait_start));
+#endif /*VENDOR_EDIT*/
 	return handle;
 }
 EXPORT_SYMBOL(ion_alloc);
