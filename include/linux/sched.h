@@ -2234,7 +2234,17 @@ struct task_struct {
 #ifdef CONFIG_PREEMPT_MONITOR
 	unsigned long preempt_dur;
 #endif
-
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// Liujie.Xie@TECH.Kernel.Sched, 2019/08/29, add for stuck monitor
+    int stuck_trace;
+    struct oppo_uifirst_monitor_info oppo_stuck_info;
+    unsigned in_mutex:1;
+    unsigned in_downread:1;
+    unsigned in_downwrite:1;
+    unsigned in_futex:1;
+    unsigned in_binder:1;
+    unsigned in_epoll:1;
+#endif
 #if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
 	/* Kui.Zhang@TEC.Kernel.Performance, 2019/03/04
 	 * Record process reclaim infor
