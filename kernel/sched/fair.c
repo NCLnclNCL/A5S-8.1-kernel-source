@@ -34,11 +34,21 @@
 
 #include <trace/events/sched.h>
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/05/02
+// Add for get cpu load
+#include <soc/oppo/oppo_healthinfo.h>
+#endif /*VENDOR_EDIT*/
+
 #include "sched.h"
 #include "tune.h"
 #include "walt.h"
 #include "hmp.h"
 #include "eas_plus.c"
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_IOMONITOR)
+#include <soc/oppo/oppo_iomonitor.h>
+#endif
 
 int stune_task_threshold;
 
