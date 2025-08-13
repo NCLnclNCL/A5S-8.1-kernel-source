@@ -17,9 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/ratelimit.h>
-#ifdef CONFIG_OPPO_MEM_MONITOR
+//#ifdef CONFIG_OPPO_MEM_MONITOR
 #include <linux/memory_monitor.h>
-#endif
+//#endif
 
 struct sched_stat_para {
         bool ctrl;
