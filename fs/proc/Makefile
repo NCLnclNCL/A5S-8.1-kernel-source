@@ -34,9 +34,9 @@ proc-$(CONFIG_PRINTK)	+= kmsg.o
 proc-$(CONFIG_PROC_PAGE_MONITOR)	+= page.o
 ifeq ($(ODM_WT_EDIT),yes)
 # Jinfan.Hu@ODM_WT.BSP.Kenel.Driver, 2018/08/11, Add for devinfo node in proc folder for factory reqiurment
-obj-y += devinfo.o
+#obj-y += devinfo.o
 # Jinfan.Hu@ODM_WT.BSP.Kenel.Driver, 2018/08/11, Add for oppoVersion nodes in oppoverison folder for OS usage.
-obj-y += oppoversion.o
+#obj-y += oppoversion.o
 # Haibin1.zhang@ODM_WT.BSP.Kernel.Security,2018/08/17,Add for uniqueno display in factory mode
 proc-y  += serial_num.o
 # Jianfeng.Liang@ODM_WT.BSP.Sensors.Config, 2018/11/19, Add for engmode sensors
