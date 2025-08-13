@@ -2505,7 +2505,9 @@ static void oppoversion_info_set_4_ramsize(void)
 		ramsize_info = "8G";
 	else
 		ramsize_info = "unknown";
+#ifndef OPPO_COMMON_SOFT
 	oppoversion_info_set("ramSize", ramsize_info);
+#endif
 }
 #endif /* ODM_WT_EDIT */
 

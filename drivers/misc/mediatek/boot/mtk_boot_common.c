@@ -340,7 +340,9 @@ static int oppo_get_boot_mode(char *oppo_boot_mode_char)
     pr_info("oppo_boot_mode: %d ",oppo_boot_mode);
 
 	sprintf(oppoBootModeInfo, "%d", oppo_boot_mode);
+#ifndef OPPO_COMMON_SOFT
 	oppoversion_info_set("bootMode", oppoBootModeInfo);
+#endif
     return 1;
 }
 __setup("oppo_boot_mode=", oppo_get_boot_mode);
@@ -348,7 +350,9 @@ __setup("oppo_boot_mode=", oppo_get_boot_mode);
 
 static int oppo_get_modemid_info(char *oppo_modemid)
 {
+#ifndef OPPO_COMMON_SOFT
 	oppoversion_info_set("modemType", oppo_modemid);
+#endif
     return 1;
 }
 __setup("modemId=", oppo_get_modemid_info);
@@ -356,8 +360,9 @@ __setup("modemId=", oppo_get_modemid_info);
 static int oppo_get_operatorID_info(char *operatorID_info)
 {
 	char prjversion_info[HARDWARE_MAX_ITEM_LONGTH];
+#ifndef OPPO_COMMON_SOFT
 	oppoversion_info_set("operatorName", operatorID_info);
-
+#endif
 	//operatorID 1,2 to 18121, operatorID 3,4,5,6,7,8,9,10,11 to 18511
 	if(strcmp(operatorID_info, "1") == 0 || strcmp(operatorID_info, "2") == 0){
 	    strncpy(prjversion_info, "18121", HARDWARE_MAX_ITEM_LONGTH);
@@ -372,8 +377,9 @@ static int oppo_get_operatorID_info(char *operatorID_info)
 	}else if(strcmp(operatorID_info, "12") == 0){
 		strncpy(prjversion_info, "18510", HARDWARE_MAX_ITEM_LONGTH);
 	}
-
+#ifndef OPPO_COMMON_SOFT
 	oppoversion_info_set("prjVersion", prjversion_info);
+#endif
     return 1;
 }
 __setup("operatorID=", oppo_get_operatorID_info);
