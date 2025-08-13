@@ -1033,7 +1033,7 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_IOMONITOR)
 				iomonitor_record_iowait(tsk, (delta >> 20));
 #endif
-#ifdef VENDOR_EDIT
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
 // wenbin.liu@PSW.BSP.MM, 2018/05/09
 // Add for get iowait
                 ohm_schedstats_record(OHM_SCHED_IOWAIT, task_is_fg(tsk), (delta >> 20));
