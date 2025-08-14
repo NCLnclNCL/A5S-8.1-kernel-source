@@ -1079,7 +1079,7 @@ static unsigned long long xgf_qudeq_enter(int rpid,
 
 	trace_xgf_intvl("enter", NULL, &ref->ts, &now->ts);
 
-	WARN_ON(!xgf_est_slptime_fp);
+//	WARN_ON(!xgf_est_slptime_fp);
 	if (xgf_est_slptime_fp)
 		ret = xgf_est_slptime_fp(proc, &slptime, ref, now, rpid);
 	else
