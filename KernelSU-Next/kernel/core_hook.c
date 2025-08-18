@@ -196,7 +196,10 @@ static void setup_groups(struct root_profile *profile, struct cred *cred)
 
 static void disable_seccomp(void)
 {
-	assert_spin_locked(&current->sighand->siglock);
+	struct task_struct *tsk = get_current();
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	assert_spin_locked(&tsk->sighand->siglock);
 	// disable seccomp
 #if defined(CONFIG_GENERIC_ENTRY) &&                                           \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
@@ -206,10 +209,22 @@ static void disable_seccomp(void)
 #endif
 
 #ifdef CONFIG_SECCOMP
-	current->seccomp.mode = 0;
-	current->seccomp.filter = NULL;
+	tsk->seccomp.mode = 0;
+	if (tsk->seccomp.filter == NULL) {
+		pr_warn("tsk->seccomp.filter is NULL already!\n");
+		goto out;
+	}
+
+	// 5.9+ have filter_count and use seccomp_filter_release
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+	seccomp_filter_release(tsk);
+	atomic_set(&tsk->seccomp.filter_count, 0);
 #else
+	put_seccomp_filter(tsk);
+	tsk->seccomp.filter = NULL;
 #endif
+out:
+	spin_unlock_irq(&tsk->sighand->siglock);
 }
 
 void ksu_escape_to_root(void)
