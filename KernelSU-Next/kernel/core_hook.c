@@ -223,7 +223,6 @@ static void disable_seccomp(void)
 	put_seccomp_filter(tsk);
 	tsk->seccomp.filter = NULL;
 #endif
-#endif
 out:
 	spin_unlock_irq(&tsk->sighand->siglock);
 }
