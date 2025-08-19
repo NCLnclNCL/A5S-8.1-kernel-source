@@ -45,9 +45,9 @@
 #define SEG3_GPU_DVFS_FREQ1			(500000)	/* KHz */
 #define SEG3_GPU_DVFS_FREQ2			(400000)	/* KHz */
 
-#define SEG3_GPU_DVFS_VOLT0			(80000)		/* mV x 100 */
-#define SEG3_GPU_DVFS_VOLT1			(70000)		/* mV x 100 */
-#define SEG3_GPU_DVFS_VOLT2			(65000)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT0			(75000)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT1			(65000)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT2			(60000)		/* mV x 100 */
 
 #define SEG3_GPU_DVFS_VSRAM0			(87500)		/* mV x 100 */
 #define SEG3_GPU_DVFS_VSRAM1			(87500)		/* mV x 100 */
