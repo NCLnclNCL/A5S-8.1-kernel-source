@@ -2731,7 +2731,7 @@ static ssize_t store_FG_daemon_log_level(
 				val
 			);
 
-			gm.log_level = val;
+			gm.log_level = 0;
 		}
 		if (val >= 7) {
 			gtimer_set_log_level(3);
