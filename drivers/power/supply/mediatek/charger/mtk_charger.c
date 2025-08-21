@@ -2088,7 +2088,7 @@ static void chg_work()
 	int rc;
 	union power_supply_propval pval = {0,};
 //struct charger_manager *pinfo = arg;
-	rc = power_supply_get_property(pinfo->bms_psy,
+	rc = power_supply_get_property(pinfo->psy_nb,
 			POWER_SUPPLY_PROP_CAPACITY, &pval);
 	if (rc < 0) {
 		pr_err("ffc Couldn't get bms capacity:%d\n", rc);
@@ -3259,10 +3259,6 @@ static ssize_t store_charge_start_level(struct device *dev,
 	pr_info("[Battery] store code store_charge_start_level:  %d\n", pinfo->charge_start_level);
 //mtk_chgstat_notify(pinfo);
 	}
-	if (pinfo->battery_psy)
-		power_supply_changed(pinfo->battery_psy);
-	if (pinfo->bms_psy)
-		power_supply_changed(pinfo->bms_psy);
 	return size;
 }
 static DEVICE_ATTR(charge_start_level, 0644, show_charge_start_level, store_charge_start_level);
@@ -3296,10 +3292,6 @@ static ssize_t store_charge_stop_level(struct device *dev,
 	pr_info("[Battery] store code reg : %d\n", reg);
 	pr_info("[Battery] store code store_charge_stop_level : %d\n", pinfo->charge_stop_level);
 	}
-	if (pinfo->battery_psy)
-		power_supply_changed(pinfo->battery_psy);
-	if (pinfo->bms_psy)
-		power_supply_changed(pinfo->bms_psy);
 	return size;
 }
 //
