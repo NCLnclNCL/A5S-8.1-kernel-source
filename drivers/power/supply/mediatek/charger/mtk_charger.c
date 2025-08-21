@@ -2088,7 +2088,7 @@ static void chg_work()
 	int rc;
 	union power_supply_propval pval = {0,};
 //struct charger_manager *pinfo = arg;
-	rc = power_supply_get_property(info->psy_nb.notifier_call,
+	rc = power_supply_get_property(pinfo->psy_nb.notifier_call,
 			POWER_SUPPLY_PROP_CAPACITY, &pval);
 	if (rc < 0) {
 		pr_err("ffc Couldn't get bms capacity:%d\n", rc);
