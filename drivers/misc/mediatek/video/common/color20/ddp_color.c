@@ -21,9 +21,7 @@
 	defined(CONFIG_MACH_MT6757) || defined(CONFIG_MACH_KIBOPLUS) || \
 	defined(CONFIG_MACH_MT6799) || defined(CONFIG_MACH_MT6759) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #include <disp_helper.h>
 #endif
 
@@ -34,9 +32,7 @@
 	defined(CONFIG_MACH_MT6757) || defined(CONFIG_MACH_KIBOPLUS) || \
 	defined(CONFIG_MACH_MT6799) || defined(CONFIG_MACH_MT6759) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #include "ddp_clkmgr.h"
 #endif
 
@@ -57,9 +53,7 @@
 #if defined(CONFIG_MACH_MT6797) || defined(CONFIG_MACH_MT6757) || \
 	defined(CONFIG_MACH_KIBOPLUS) || defined(CONFIG_MACH_MT6799) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #define COLOR_SUPPORT_PARTIAL_UPDATE
 #endif
 
@@ -128,10 +122,7 @@ param:
 	 1, 1, 0, 0, 0, 0, 0, 0, 0, 0x0A,
 	 0x30, 0x40, 0x06, 0x12, 40, 0x40, 0x80, 0x40, 0x40, 1,
 	 0x80, 0x60, 0x80, 0x10, 0x34, 0x40, 0x40, 1, 0x80, 0xa,
-	 0x19, 0x00, 0x20, 0, 0, 1, 2, 1, 80, 1,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0
-	}
+	 0x19, 0x00, 0x20, 0, 0, 1, 2, 1, 80, 1}
 };
 
 static struct DISP_PQ_DS_PARAM g_PQ_DS_Param = {
@@ -1134,25 +1125,26 @@ static unsigned long g_tdshp1_va;
 	defined(CONFIG_MACH_MT6739)
 #define TDSHP_PA_BASE   0x14009000
 #elif defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6763) || \
-	defined(CONFIG_MACH_MT6758) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6758)
 #define TDSHP_PA_BASE   0x14007000
-#elif defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+#elif defined(CONFIG_MACH_MT6765)
 #define TDSHP_PA_BASE   0x1400A000
 #else
 #define TDSHP_PA_BASE   0x14006000
 #endif
 
-#if defined(NO_COLOR_SHARED)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 #if defined(CONFIG_MACH_MT6797) || defined(CONFIG_MACH_MT6757) || \
 	defined(CONFIG_MACH_KIBOPLUS) || defined(CONFIG_MACH_MT6799)
 #define MDP_COLOR_PA_BASE 0x1400A000
+#elif defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758)
+#define MDP_COLOR_PA_BASE 0x1400E000
+#elif defined(CONFIG_MACH_MT6765)
+#define MDP_COLOR_PA_BASE 0x1400F000
 #else
 #define MDP_COLOR_PA_BASE 0x14007000
 #endif
 static unsigned long g_mdp_color_va;
-#endif
 #endif
 
 #if defined(SUPPORT_ULTRA_RESOLUTION)
@@ -1165,26 +1157,9 @@ static unsigned long g_mdp_rsz2_va;
 #endif
 
 #if defined(SUPPORT_HDR)
-#if defined(HDR_IN_RDMA)
 #define MDP_RDMA0_PA_BASE 0x14001000
 static unsigned long g_mdp_rdma0_va;
 #define MDP_HDR_OFFSET 0x00000800
-#else
-#define MDP_HDR_PA_BASE 0x1401c000
-static unsigned long g_mdp_hdr_va;
-#endif
-#endif
-
-#if defined(SUPPORT_MDP_AAL)
-#include <linux/delay.h>
-#if defined(CONFIG_MACH_MT6771) || defined(CONFIG_MACH_MT6779)
-#define MDP_AAL0_PA_BASE 0x1401b000
-#else
-#define MDP_AAL0_PA_BASE 0x1401c000
-#endif
-#define DRE30_HIST_START         (1024)
-#define DRE30_HIST_END           (4092)
-static unsigned long g_mdp_aal0_va;
 #endif
 
 #define TRANSLATION(origin, shift) ((origin >= shift) ? (origin - shift) : 0)
@@ -2348,8 +2323,7 @@ static unsigned long color_get_TDSHP_VA(void)
 	unsigned long VA;
 	struct device_node *node = NULL;
 #if defined(CONFIG_MACH_MT6595) || defined(CONFIG_MACH_MT6795) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 	node = of_find_compatible_node(NULL, NULL, "mediatek,mdp_tdshp0");
 #else
 	node = of_find_compatible_node(NULL, NULL, "mediatek,mdp_tdshp");
@@ -2374,7 +2348,6 @@ static unsigned long color_get_TDSHP1_VA(void)
 }
 #endif
 
-#if defined(NO_COLOR_SHARED)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 static unsigned long color_get_MDP_COLOR_VA(void)
 {
@@ -2387,7 +2360,6 @@ static unsigned long color_get_MDP_COLOR_VA(void)
 
 	return VA;
 }
-#endif
 #endif
 
 #if defined(SUPPORT_ULTRA_RESOLUTION)
@@ -2429,7 +2401,6 @@ static unsigned long color_get_MDP_RSZ2_VA(void)
 #endif
 
 #if defined(SUPPORT_HDR)
-#if defined(HDR_IN_RDMA)
 static unsigned long color_get_MDP_RDMA0_VA(void)
 {
 	unsigned long VA;
@@ -2440,70 +2411,6 @@ static unsigned long color_get_MDP_RDMA0_VA(void)
 	COLOR_DBG("MDP_RDMA0 VA: 0x%lx\n", VA);
 
 	return VA;
-}
-#else
-static unsigned long color_get_MDP_HDR_VA(void)
-{
-	unsigned long VA;
-	struct device_node *node = NULL;
-
-	node = of_find_compatible_node(NULL, NULL, "mediatek,mdp_hdr");
-	VA = (unsigned long)of_iomap(node, 0);
-	COLOR_DBG("MDP_HDR VA: 0x%lx\n", VA);
-
-	return VA;
-}
-#endif
-#endif
-
-#if defined(SUPPORT_MDP_AAL)
-static unsigned long color_get_MDP_AAL0_VA(void)
-{
-	unsigned long VA;
-	struct device_node *node = NULL;
-
-#if defined(CONFIG_MACH_MT6771)
-	node = of_find_compatible_node(NULL, NULL, "mediatek,mdp_aal");
-#else
-	node = of_find_compatible_node(NULL, NULL, "mediatek,mdp_aal0");
-#endif
-	VA = (unsigned long)of_iomap(node, 0);
-	COLOR_DBG("MDP_AAL0 VA: 0x%lx\n", VA);
-
-	return VA;
-}
-
-static inline void dre_sram_read(unsigned int addr, unsigned int *value)
-{
-	unsigned int reg_value;
-	unsigned int polling_time = 0;
-	const unsigned int POLL_SLEEP_TIME_US = 10;
-	const unsigned int MAX_POLL_TIME_US = 1000;
-
-	DISP_REG_SET(NULL, g_mdp_aal0_va + 0xD4, addr);
-
-	do {
-		reg_value = DISP_REG_GET(g_mdp_aal0_va + 0xC8);
-
-		if ((reg_value & (0x1 << 17)) == (0x1 << 17))
-			break;
-
-		udelay(POLL_SLEEP_TIME_US);
-		polling_time += POLL_SLEEP_TIME_US;
-	} while (polling_time < MAX_POLL_TIME_US);
-
-	*value = DISP_REG_GET(g_mdp_aal0_va + 0xD8);
-}
-
-static void dump_dre_blk_histogram(void)
-{
-	int i;
-	unsigned int value;
-
-	for (i = DRE30_HIST_START; i < DRE30_HIST_END; i += 4) {
-		dre_sram_read(i, &value);
-		COLOR_NLOG("Hist add[%d], value[0x%08x]", i, value);
-	}
 }
 #endif
 
@@ -2526,10 +2433,8 @@ static void _color_get_VA(void)
 	/* check if va address initialized*/
 	if (g_get_va_flag == false) {
 		g_tdshp_va = color_get_TDSHP_VA();
-#if defined(NO_COLOR_SHARED)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 		g_mdp_color_va = color_get_MDP_COLOR_VA();
-#endif
 #endif
 #if defined(CONFIG_MACH_MT6595) || defined(CONFIG_MACH_MT6795)
 		g_tdshp1_va = color_get_TDSHP1_VA();
@@ -2541,15 +2446,7 @@ static void _color_get_VA(void)
 #endif
 
 #if defined(SUPPORT_HDR)
-#if defined(HDR_IN_RDMA)
 		g_mdp_rdma0_va = color_get_MDP_RDMA0_VA();
-#else
-		g_mdp_hdr_va = color_get_MDP_HDR_VA();
-#endif
-#endif
-
-#if defined(SUPPORT_MDP_AAL)
-		g_mdp_aal0_va = color_get_MDP_AAL0_VA();
 #endif
 
 #if defined(SUPPORT_WCG)
@@ -2576,8 +2473,7 @@ static unsigned int color_is_reg_addr_valid(unsigned long addr)
 	}
 #if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 	i = is_reg_addr_valid(1, addr);
 	if (i) {
 		COLOR_DBG("addr valid, addr=0x%lx, module=%s!\n",
@@ -2601,7 +2497,6 @@ static unsigned int color_is_reg_addr_valid(unsigned long addr)
 #endif
 
 	/*Check if MDP color base address*/
-#if defined(NO_COLOR_SHARED)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 	if ((addr >= g_mdp_color_va) && (addr < (g_mdp_color_va + 0x1000))) {
 		/* MDP COLOR */
@@ -2610,7 +2505,7 @@ static unsigned int color_is_reg_addr_valid(unsigned long addr)
 		return 2;
 	}
 #endif
-#endif
+
 
 	/*Check if MDP RSZ base address*/
 #if defined(SUPPORT_ULTRA_RESOLUTION)
@@ -2636,34 +2531,11 @@ static unsigned int color_is_reg_addr_valid(unsigned long addr)
 
 	/*Check if MDP HDR base address*/
 #if defined(SUPPORT_HDR)
-#if defined(HDR_IN_RDMA)
 	if ((addr >= g_mdp_rdma0_va + MDP_HDR_OFFSET) &&
 		(addr < (g_mdp_rdma0_va + 0x1000))) {
 		/* MDP RDMA0 */
 		COLOR_DBG("addr valid, addr=0x%lx, module=%s!\n", addr,
 			"MDP_RDMA0");
-		return 2;
-	}
-#else
-	if ((addr >= g_mdp_hdr_va) &&
-		(addr < (g_mdp_hdr_va + 0x1000))) {
-		/* MDP HDR */
-		COLOR_DBG("addr valid, addr=0x%lx, module=%s!\n", addr,
-			"MDP_HDR");
-		return 2;
-	}
-#endif
-#endif
-
-	/*Check if MDP AAL base address*/
-#if defined(SUPPORT_MDP_AAL)
-	if ((addr >= g_mdp_aal0_va) &&
-		(addr < (g_mdp_aal0_va + 0x1000))) {
-		/* MDP AAL0 */
-		COLOR_DBG("addr valid, addr=0x%lx, module=%s!\n", addr,
-			"MDP_AAL0");
-		if (addr >= g_mdp_aal0_va + 0xFF0)
-			dump_dre_blk_histogram();
 		return 2;
 	}
 #endif
@@ -2703,18 +2575,13 @@ static unsigned int color_is_reg_addr_valid(unsigned long addr)
 static unsigned long color_pa2va(unsigned int addr)
 {
 	unsigned int i = 0;
-	/* check base is not zero */
-	if ((addr & 0xFFFF0000) == 0) {
-		COLOR_ERR("invalid address! addr=0x%x!\n", addr);
-		return 0;
-	}
+
 	_color_get_VA();
 
 	/* check disp module */
 #if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 	i = is_reg_addr_valid(0, addr);
 	if (i) {
 		COLOR_DBG("COLOR PA:0x%x, PABase:0x%x, VABase:0x%lx",
@@ -2749,7 +2616,6 @@ static unsigned long color_pa2va(unsigned int addr)
 	}
 #endif
 
-#if defined(NO_COLOR_SHARED)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 	/* MDP_COLOR */
 	if ((addr >= MDP_COLOR_PA_BASE) &&
@@ -2758,7 +2624,6 @@ static unsigned long color_pa2va(unsigned int addr)
 			addr, MDP_COLOR_PA_BASE, g_mdp_color_va);
 		return g_mdp_color_va + (addr - MDP_COLOR_PA_BASE);
 	}
-#endif
 #endif
 
 #if defined(SUPPORT_ULTRA_RESOLUTION)
@@ -2783,30 +2648,11 @@ static unsigned long color_pa2va(unsigned int addr)
 
 #if defined(SUPPORT_HDR)
 	/* MDP_HDR */
-#if defined(HDR_IN_RDMA)
 	if ((addr >= MDP_RDMA0_PA_BASE + MDP_HDR_OFFSET) &&
 		(addr < (MDP_RDMA0_PA_BASE + 0x1000))) {
 		COLOR_DBG("MDP_RDMA0 PA:0x%x, PABase:0x%x, VABase:0x%lx",
 			addr, MDP_RDMA0_PA_BASE, g_mdp_rdma0_va);
 		return g_mdp_rdma0_va + (addr - MDP_RDMA0_PA_BASE);
-	}
-#else
-	if ((addr >= MDP_HDR_PA_BASE) &&
-		(addr < (MDP_HDR_PA_BASE + 0x1000))) {
-		COLOR_DBG("MDP_HDR PA:0x%x, PABase:0x%x, VABase:0x%lx",
-			addr, MDP_HDR_PA_BASE, g_mdp_hdr_va);
-		return g_mdp_hdr_va + (addr - MDP_HDR_PA_BASE);
-	}
-#endif
-#endif
-
-#if defined(SUPPORT_MDP_AAL)
-	/* MDP_AAL */
-	if ((addr >= MDP_AAL0_PA_BASE) &&
-		(addr < (MDP_AAL0_PA_BASE + 0x1000))) {
-		COLOR_DBG("MDP_AAL0 PA:0x%x, PABase:0x%x, VABase:0x%lx",
-			addr, MDP_AAL0_PA_BASE, g_mdp_aal0_va);
-		return g_mdp_aal0_va + (addr - MDP_AAL0_PA_BASE);
 	}
 #endif
 
@@ -2820,8 +2666,14 @@ static unsigned long color_pa2va(unsigned int addr)
 	}
 #endif
 
+#if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
+	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
+	defined(CONFIG_MACH_MT6765)
 	COLOR_ERR("NO FOUND VA!! PA:0x%x", addr);
-
+#else
+	COLOR_ERR("NO FOUND VA!! PA:0x%x, PABase:0x%x, VABase:0x%lx",
+		addr, (unsigned int)ddp_reg_pa_base[0], dispsys_reg[0]);
+#endif
 return 0;
 }
 #if defined(CONFIG_MACH_MT6757)
@@ -2858,8 +2710,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 			ret = ddp_reg_pa_base[DISP_REG_COLOR0];
 #elif defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 			ret = ddp_get_module_pa(DISP_MODULE_COLOR0);
 #else
 			ret = ddp_reg_pa_base[DISP_REG_COLOR];
@@ -2875,9 +2726,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 #elif defined(CONFIG_MACH_MT6759)
 			ret = ddp_get_module_pa(DISP_MODULE_GAMMA);
 #elif defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 			ret = ddp_get_module_pa(DISP_MODULE_GAMMA0);
 
 #else
@@ -2894,9 +2743,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 #elif defined(CONFIG_MACH_MT6759)
 			ret = ddp_get_module_pa(DISP_MODULE_AAL);
 #elif defined(CONFIG_MACH_MT6758) || defined(CONFIG_MACH_MT6763) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 			ret = ddp_get_module_pa(DISP_MODULE_AAL0);
 #else
 			ret = ddp_reg_pa_base[DISP_REG_AAL];
@@ -2913,9 +2760,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 #elif defined(CONFIG_MACH_MT6759)
 			ret = ddp_get_module_pa(DISP_MODULE_CCORR);
 #elif defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761) || defined(CONFIG_MACH_MT3967) || \
-	defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 			ret = ddp_get_module_pa(DISP_MODULE_CCORR0);
 
 #else
@@ -2933,11 +2778,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 #if defined(DISP_MDP_COLOR_ON) || defined(MDP_COLOR_ON)
 	case SWREG_MDP_COLOR_BASE_ADDRESS:
 		{
-#if defined(NO_COLOR_SHARED)
 			ret = MDP_COLOR_PA_BASE;
-#else
-			ret = ddp_get_module_pa(DISP_MODULE_COLOR0);
-#endif
 			break;
 		}
 #endif
@@ -2958,27 +2799,7 @@ static unsigned int color_read_sw_reg(unsigned int reg_id)
 	case SWREG_MDP_RDMA_BASE_ADDRESS:
 		{
 #if defined(SUPPORT_HDR)
-#if defined(HDR_IN_RDMA)
 			ret = MDP_RDMA0_PA_BASE;
-#endif
-#endif
-			break;
-		}
-
-	case SWREG_MDP_AAL_BASE_ADDRESS:
-		{
-#if defined(SUPPORT_AAL)
-			ret = MDP_AAL0_PA_BASE;
-#endif
-			break;
-		}
-
-	case SWREG_MDP_HDR_BASE_ADDRESS:
-		{
-#if defined(SUPPORT_HDR)
-#if !defined(HDR_IN_RDMA)
-			ret = MDP_HDR_PA_BASE;
-#endif
 #endif
 			break;
 		}
@@ -3104,8 +2925,7 @@ static int _color_clock_on(enum DISP_MODULE_ENUM module, void *cmq_handle)
 
 #if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 	ddp_clk_prepare_enable(ddp_get_module_clk_id(module));
 	return 0;
 #else
@@ -3157,8 +2977,7 @@ static int _color_clock_off(enum DISP_MODULE_ENUM module, void *cmq_handle)
 
 #if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) || \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 	ddp_clk_disable_unprepare(ddp_get_module_clk_id(module));
 	return 0;
 #else
@@ -3208,11 +3027,13 @@ static int _color_init(enum DISP_MODULE_ENUM module, void *cmq_handle)
 		g_config_color30 = true;
 	else
 		g_config_color21 = false;
-#elif defined(CONFIG_MACH_MT6799)
+#endif
+#if defined(CONFIG_MACH_MT6799)
 	if (mt_get_chip_sw_ver() == 0x0001) { /* E2 */
 		g_config_color30 = true;
 	}
-#elif defined(COLOR_3_0)
+#endif
+#if defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758)
 	g_config_color30 = true;
 #endif
 
@@ -3384,16 +3205,16 @@ static int color_ioctl(enum DISP_MODULE_ENUM module, void *handle,
 }
 #endif
 
-static int _color_io(enum DISP_MODULE_ENUM module, unsigned int msg,
-		unsigned long arg, void *cmdq)
+static int _color_io(enum DISP_MODULE_ENUM module, int msg, unsigned long arg,
+		void *cmdq)
 {
 	/* legacy chip use driver .cmd to call _color_io */
 	/* After mt6763 directly call ioctl_function from ddp_manager */
 	return disp_color_ioctl(module, msg, arg, cmdq);
 }
 
-int disp_color_ioctl(enum DISP_MODULE_ENUM module, unsigned int msg,
-		unsigned long arg, void *cmdq)
+int disp_color_ioctl(enum DISP_MODULE_ENUM module, int msg, unsigned long arg,
+		void *cmdq)
 {
 
 	int ret = 0;
@@ -4068,8 +3889,7 @@ static int _color_build_cmdq(enum DISP_MODULE_ENUM module,
 				CMDQ_DATA_REG_PQ_COLOR);
 #elif defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761) ||  \
-	defined(CONFIG_MACH_MT3967) || defined(CONFIG_MACH_MT6779)
+	defined(CONFIG_MACH_MT6765)
 		ret = cmdqRecReadToDataRegister(cmdq_trigger_handle,
 			ddp_get_module_pa(DISP_MODULE_COLOR0) +
 			(DISP_COLOR_TWO_D_W1_RESULT - DISPSYS_COLOR0_BASE),

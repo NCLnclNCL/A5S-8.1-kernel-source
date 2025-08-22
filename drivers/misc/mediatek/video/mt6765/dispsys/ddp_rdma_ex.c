@@ -739,6 +739,10 @@ void rdma_set_ultra_l(unsigned int idx, unsigned int bpp, void *handle,
 	dvfs_threshold_low = preultra_low;
 	dvfs_threshold_high = preultra_low;
 
+	/* Disable HRT_URGENT_SIGNAL */
+	DISP_REG_SET_FIELD(handle, MMSYS_EMI_REQ_CTL_FLD_HRT_URGENT_CTL,
+		DISP_REG_CONFIG_MMSYS_EMI_REQ_CTL, 0x3);
+
 	if (primary_display_is_video_mode()) {
 		/* video mode*/
 		DISP_REG_SET(handle, idx * DISP_RDMA_INDEX_OFFSET +
@@ -1506,10 +1510,10 @@ static int _rdma_partial_update(enum DISP_MODULE_ENUM module, void *arg,
 }
 
 int rdma_ioctl(enum DISP_MODULE_ENUM module, void *cmdq_handle,
-	enum DDP_IOCTL_NAME ioctl_cmd, void *params)
+	unsigned int ioctl_cmd, unsigned long *params)
 {
 	int ret = 0;
-	enum DDP_IOCTL_NAME ioctl = ioctl_cmd;
+	enum DDP_IOCTL_NAME ioctl = (enum DDP_IOCTL_NAME)ioctl_cmd;
 	unsigned int idx = rdma_index(module);
 
 	switch (ioctl) {

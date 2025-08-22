@@ -67,7 +67,4 @@ void enable_ext_idlemgr(unsigned int flag);
 void external_display_idlemgr_kick(const char *source, int need_lock);
 
 #endif
-
-extern unsigned int esd_checking;
-
 #endif

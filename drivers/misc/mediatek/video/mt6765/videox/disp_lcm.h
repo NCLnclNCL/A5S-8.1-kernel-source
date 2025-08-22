@@ -52,6 +52,7 @@ int disp_lcm_esd_recover(struct disp_lcm_handle *plcm);
 int disp_lcm_suspend(struct disp_lcm_handle *plcm);
 int disp_lcm_resume(struct disp_lcm_handle *plcm);
 #ifdef ODM_WT_EDIT
+//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/24, NT36525b related panel request extra power sequence before MIPI entering LP11 from LP-00
 int primary_disp_lcm_resume_power(struct disp_lcm_handle *plcm);
 #endif /* ODM_WT_EDIT */
 int disp_lcm_is_support_adjust_fps(struct disp_lcm_handle *plcm);
@@ -73,11 +74,11 @@ int disp_lcm_is_partial_support(struct disp_lcm_handle *plcm);
 int disp_lcm_validate_roi(struct disp_lcm_handle *plcm,
 	int *x, int *y, int *w, int *h);
 int disp_lcm_aod(struct disp_lcm_handle *plcm, int enter);
-
-#ifdef ODM_WT_EDIT
-//Hao.liang@ODM_WT.MM.Display.Lcd, 2019/10/11 Add cabc read & write interface,
-int disp_lcm_set_cabc(struct disp_lcm_handle *plcm, void *handle, int enable);
-int disp_lcm_get_cabc(struct disp_lcm_handle *plcm, int *status);
+#ifdef VENDOR_EDIT
+/*
+* Ling.Guo@PSW.MM.Display.LCD.Stability, 2018/11/12,
+* add display feature interface
+*/
 int disp_lcm_oppo_set_lcm_cabc_cmd(struct disp_lcm_handle *plcm, void *handle, unsigned int level);
-#endif
+#endif /* VENDOR_EDIT */
 #endif

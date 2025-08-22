@@ -24,17 +24,10 @@ ccflags-y += \
 				-I$(srctree)/drivers/misc/mediatek/leds/$(MTK_PLATFORM)/
 
 
-ifeq (y, $(filter y, $(CONFIG_MACH_MT6763) $(CONFIG_MACH_MT6799) $(CONFIG_MACH_MT6759) \
-					 $(CONFIG_MACH_MT6758) $(CONFIG_MACH_MT6739) $(CONFIG_MACH_MT6765) \
-					 $(CONFIG_MACH_MT6761) $(CONFIG_MACH_MT3967) $(CONFIG_MACH_MT6779)))
+ifeq (y, $(filter y, $(CONFIG_MACH_MT6763) $(CONFIG_MACH_MT6799) $(CONFIG_MACH_MT6759) $(CONFIG_MACH_MT6758) $(CONFIG_MACH_MT6739) $(CONFIG_MACH_MT6765)))
 ccflags-y += \
-				-I$(srctree)/drivers/misc/mediatek/cmdq/v3/
-
-ifeq ($(CONFIG_MACH_MT6761),y)
-    ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/mt6765/
-else
-    ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
-endif
+				-I$(srctree)/drivers/misc/mediatek/cmdq/v3/ \
+				-I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
 else
 ccflags-y += \
 				-I$(srctree)/drivers/misc/mediatek/cmdq/v2/ \

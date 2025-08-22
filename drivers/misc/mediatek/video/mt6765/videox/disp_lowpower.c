@@ -68,6 +68,24 @@
 #include "mmdvfs_mgr.h"
 #endif
 
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+#include "ddp_ovl.h"
+#include "ddp_drv.h"
+#include "ddp_wdma.h"
+#include "ddp_hal.h"
+#include "ddp_path.h"
+#include "ddp_aal.h"
+#include "ddp_pwm.h"
+#include "ddp_dither.h"
+#include "ddp_info.h"
+#include "ddp_dsi.h"
+#include "ddp_rdma.h"
+#endif
+
 /* device tree */
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -80,12 +98,9 @@
 #define idlemgr_pgc		_get_idlemgr_context()
 #define golden_setting_pgc	_get_golden_setting_context()
 
-#ifndef CONFIG_MTK_DISPLAY_LOW_MEMORY_DEBUG_SUPPORT
 #define kick_dump_max_length (1024 * 16 * 4)
 static unsigned char kick_string_buffer_analysize[kick_dump_max_length] = { 0 };
 static unsigned int kick_buf_length;
-#endif
-
 static atomic_t idlemgr_task_wakeup = ATOMIC_INIT(1);
 #if defined(CONFIG_MTK_DUAL_DISPLAY_SUPPORT) && \
 	(CONFIG_MTK_DUAL_DISPLAY_SUPPORT == 2)
@@ -94,7 +109,6 @@ static atomic_t ext_idlemgr_task_wakeup = ATOMIC_INIT(1);
 #ifdef MTK_FB_MMDVFS_SUPPORT
 /* dvfs */
 static atomic_t dvfs_ovl_req_status = ATOMIC_INIT(HRT_LEVEL_LEVEL0);
-static int dvfs_before_idle = HRT_LEVEL_NUM - 1;
 #endif
 static int register_share_sram;
 
@@ -138,11 +152,118 @@ static struct disp_idlemgr_context *_get_idlemgr_context(void)
 	return &g_idlemgr_context;
 }
 
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+unsigned long long enter_idle_time;
+struct task_struct *idle_for_meta_mode;
+static int _primary_path_idle_for_meta_mode(void *data);
+#endif
+
 int primary_display_idlemgr_init(void)
 {
 	wake_up_process(idlemgr_pgc->primary_display_idlemgr_task);
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+	if (get_boot_mode() == META_BOOT) {
+		idle_for_meta_mode=kthread_create(_primary_path_idle_for_meta_mode,
+											NULL,"disp_idle_meta_mode");
+		wake_up_process(idle_for_meta_mode);
+	}
+#endif
 	return 0;
 }
+
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+static int _primary_path_idle_for_meta_mode(void *data)
+{
+	static unsigned int layer_enable[3] = {0};
+	unsigned long ovl_base0 = ovl_base_addr(DISP_MODULE_OVL0);
+	unsigned long ovl_base0_2 = ovl_base_addr(DISP_MODULE_OVL0_2L);
+	unsigned int ovl0 = 0;
+	unsigned int ovl0_2 = 0;
+	unsigned int layer_enable_temp0 = 0;
+	unsigned int layer_enable_temp1 = 0;
+	unsigned int layer_enable_temp3 = 0;
+	unsigned int layer_enable_temp4 = 0;
+	static int count=0;
+
+	msleep(16000);
+	while (1) {
+		msleep(30000);
+		primary_display_manual_lock();
+		if (primary_get_state() != DISP_ALIVE) {
+			primary_display_manual_unlock();
+			primary_display_wait_state(DISP_ALIVE, MAX_SCHEDULE_TIMEOUT);
+			continue;
+		}
+		if (!primary_display_is_idle()) {
+			primary_display_manual_unlock();
+			continue;
+		}
+		if (((local_clock()-enter_idle_time)/1000)< 60*1000*1000) {
+			primary_display_manual_unlock();
+			continue;
+		}
+		primary_display_idlemgr_kick((char *)__func__, 0);
+
+		ovl0=(DISP_REG_GET(DISP_REG_OVL_SRC_CON + ovl_base0))&0x0f;
+		ovl0_2=(DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2))&0x03;
+		layer_enable_temp3=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0);
+		layer_enable_temp4=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0_2);
+		msleep(20);
+		if (ovl0||ovl0_2) {
+			layer_enable[0]=(DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0))&0x0f;
+			layer_enable[1]=(DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2))&0x03;
+
+			layer_enable_temp0=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0);
+			layer_enable_temp1=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2);
+
+			DISP_CPU_REG_SET((DISP_REG_OVL_SRC_CON + ovl_base0),layer_enable_temp0&0xfffffff0);
+			layer_enable_temp0=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0);
+			DISP_CPU_REG_SET((DISP_REG_OVL_SRC_CON + ovl_base0_2),layer_enable_temp1&0xffffffFC);
+			layer_enable_temp1=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2);
+
+			count ++;
+			if (count%2) {
+				DISP_CPU_REG_SET((DISP_REG_OVL_ROI_BGCLR + ovl_base0),0xffff0000);
+				DISP_CPU_REG_SET((DISP_REG_OVL_ROI_BGCLR + ovl_base0_2),0xffff0000);
+				layer_enable_temp0=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0);
+				layer_enable_temp1=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0_2);
+				msleep(20);
+			} else {
+				DISP_CPU_REG_SET((DISP_REG_OVL_ROI_BGCLR + ovl_base0),0xff00ff00);
+				DISP_CPU_REG_SET((DISP_REG_OVL_ROI_BGCLR + ovl_base0_2),0xff00ff00);
+				layer_enable_temp0=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0);
+				layer_enable_temp1=DISP_REG_GET(DISP_REG_OVL_ROI_BGCLR + ovl_base0_2);
+				msleep(20);
+			}
+		} else {
+			unsigned int layer_enable_temp,layer_enable_temp1;
+			layer_enable_temp=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0);
+			DISP_CPU_REG_SET((DISP_REG_OVL_SRC_CON + ovl_base0),layer_enable_temp|layer_enable[0]);
+			layer_enable_temp=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2);
+			DISP_CPU_REG_SET((DISP_REG_OVL_SRC_CON + ovl_base0_2),layer_enable_temp|layer_enable[1]);
+
+			layer_enable_temp=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0);
+			layer_enable_temp1=DISP_REG_GET(DISP_REG_OVL_SRC_CON+ovl_base0_2);
+		}
+
+		dpmgr_module_notify(DISP_MODULE_AAL0,DISP_PATH_EVENT_TRIGGER);
+		primary_display_manual_unlock();
+	}
+	return 0;
+}
+#endif
 
 static struct golden_setting_context *_get_golden_setting_context(void)
 {
@@ -427,10 +548,6 @@ void _release_wrot_resource_nolock(enum CMDQ_EVENT_ENUM resourceEvent)
 
 	/* 1.create and reset cmdq */
 	cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &handle);
-	if (handle == NULL) {
-		DISPERR(" NULL pointer!!!\n");
-		return;
-	}
 	cmdqRecReset(handle);
 
 	/* 2.wait eof */
@@ -510,10 +627,6 @@ int _switch_mmsys_clk(int mmsys_clk_old, int mmsys_clk_new)
 
 	/* 1.create and reset cmdq */
 	cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &handle);
-	if (handle == NULL) {
-		DISPERR(" NULL pointer!!!\n");
-		return -1;
-	}
 	cmdqRecReset(handle);
 
 	if (mmsys_clk_old == MMSYS_CLK_HIGH &&
@@ -933,8 +1046,6 @@ void _cmd_mode_leave_idle(void)
 	mmprofile_log_ex(ddp_mmp_get_events()->primary_pm_qos,
 			MMPROFILE_FLAG_END,
 			!primary_display_is_decouple_mode(), bandwidth);
-	primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-		dvfs_before_idle, 0);
 #endif
 
 }
@@ -1065,14 +1176,6 @@ static int _primary_path_idlemgr_monitor_thread(void *data)
 			primary_display_manual_unlock();
 			continue;
 		}
-
-		if (esd_checking == 1) {
-			/*if esd checking, delay dl->dc*/
-			DISPINFO(
-				"[disp_lowpower]esd checking,delay enter idle\n");
-			primary_display_manual_unlock();
-			continue;
-		}
 		/* double check if dynamic switch on/off */
 		if (atomic_read(&idlemgr_task_wakeup)) {
 			mmprofile_log_ex(ddp_mmp_get_events()->idlemgr,
@@ -1084,7 +1187,6 @@ static int _primary_path_idlemgr_monitor_thread(void *data)
 			primary_display_set_idle_stat(1);
 		}
 #ifdef MTK_FB_MMDVFS_SUPPORT
-		dvfs_before_idle = atomic_read(&dvfs_ovl_req_status);
 		/* when screen idle: LP4 enter ULPM; LP3 enter LPM */
 		primary_display_request_dvfs_perf(SMI_BWC_SCEN_UI_IDLE,
 			HRT_LEVEL_LEVEL0, 0);
@@ -1095,14 +1197,18 @@ static int _primary_path_idlemgr_monitor_thread(void *data)
 		wait_event_interruptible(idlemgr_pgc->idlemgr_wait_queue,
 			!primary_display_is_idle());
 
+#ifdef MTK_FB_MMDVFS_SUPPORT
+		/* when leave screen idle: reset to default */
+		primary_display_request_dvfs_perf(SMI_BWC_SCEN_UI_IDLE,
+			HRT_LEVEL_DEFAULT,
+			layering_rule_get_mm_freq_table(HRT_OPP_LEVEL_DEFAULT));
+#endif
 		if (kthread_should_stop())
 			break;
 	}
 
 	return 0;
 }
-
-#ifndef CONFIG_MTK_DISPLAY_LOW_MEMORY_DEBUG_SUPPORT
 
 void kick_logger_dump(char *string)
 {
@@ -1130,29 +1236,6 @@ unsigned int get_kick_dump_size(void)
 {
 	return kick_buf_length;
 }
-
-#else
-
-void kick_logger_dump(char *string)
-{
-
-}
-
-void kick_logger_dump_reset(void)
-{
-
-}
-
-char *get_kick_dump(void)
-{
-	return NULL;
-}
-
-unsigned int get_kick_dump_size(void)
-{
-	return 0;
-}
-#endif
 
 /* API */
 /*****************************************************************************/
@@ -1200,9 +1283,19 @@ int primary_display_lowpower_init(void)
 		params->dsi.vertical_frontporch_for_low_power);
 
 	/* init idlemgr */
-	if (disp_helper_get_option(DISP_OPT_IDLE_MGR) &&
-		get_boot_mode() == NORMAL_BOOT)
+#ifndef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+	if (disp_helper_get_option(DISP_OPT_IDLE_MGR) && get_boot_mode() == NORMAL_BOOT)
 		primary_display_idlemgr_init();
+#else
+	if (((get_boot_mode() == NORMAL_BOOT) || (get_boot_mode() == META_BOOT))
+		&& disp_helper_get_option(DISP_OPT_IDLE_MGR)) {
+		primary_display_idlemgr_init();
+	}
+#endif
 
 	if (disp_helper_get_option(DISP_OPT_SODI_SUPPORT))
 		primary_display_sodi_rule_init();

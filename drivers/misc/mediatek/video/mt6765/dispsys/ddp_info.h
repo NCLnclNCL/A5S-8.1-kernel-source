@@ -161,11 +161,9 @@ struct sbch {
 	unsigned int height;
 	unsigned int width;
 	int phy_layer;
-	int const_bld;
 	enum UNIFIED_COLOR_FMT fmt;
 	unsigned long long sbch_en_cnt;
 	int full_trans_en;
-	unsigned int layer_disable_by_partial_update;
 };
 
 struct disp_rect {
@@ -179,7 +177,6 @@ struct OVL_CONFIG_STRUCT {
 	unsigned int ovl_index;
 	unsigned int layer;
 	unsigned int layer_en;
-	unsigned int layer_disable_by_partial_update;
 	enum OVL_LAYER_SOURCE source;
 	enum UNIFIED_COLOR_FMT fmt;
 	unsigned long addr;
@@ -202,7 +199,6 @@ struct OVL_CONFIG_STRUCT {
 	unsigned int key;
 	unsigned int aen;
 	unsigned char alpha;
-	unsigned int dim_color;
 
 	unsigned int sur_aen;
 	unsigned int src_alpha;
@@ -382,24 +378,6 @@ struct disp_ddp_path_config {
 	int read_dum_reg[OVL_NUM];
 };
 
-struct rx_data {
-	unsigned char byte0;
-	unsigned char byte1;
-	unsigned char byte2;
-	unsigned char byte3;
-};
-
-struct ddp_lcm_read_cmd_table {
-	unsigned char cmd[3];
-	struct rx_data data[3];
-};
-
-struct ddp_lcm_write_cmd_table {
-	unsigned char cmd;
-	unsigned char count;
-	unsigned char para_list[64];
-};
-
 /* dpmgr_ioctl cmd definition */
 enum DDP_IOCTL_NAME {
 /* DSI operation */
@@ -465,8 +443,8 @@ struct DDP_MODULE_DRIVER {
 		struct LCM_DRIVER *lcm_drv);
 	int (*set_listener)(enum DISP_MODULE_ENUM module,
 		ddp_module_notify notify);
-	int (*cmd)(enum DISP_MODULE_ENUM module, unsigned int msg,
-			unsigned long arg, void *handle);
+	int (*cmd)(enum DISP_MODULE_ENUM module, int msg, unsigned long arg,
+		void *handle);
 	int (*ioctl)(enum DISP_MODULE_ENUM module, void *handle,
 		enum DDP_IOCTL_NAME ioctl_cmd, void *params);
 	int (*enable_irq)(enum DISP_MODULE_ENUM module, void *handle,
@@ -537,8 +515,6 @@ unsigned int is_ddp_module_has_reg_info(enum DISP_MODULE_ENUM module);
 const char *ddp_get_module_name(enum DISP_MODULE_ENUM module);
 unsigned int _can_connect(enum DISP_MODULE_ENUM module);
 struct DDP_MODULE_DRIVER  *ddp_get_module_driver(enum DISP_MODULE_ENUM module);
-void ddp_set_module_driver(enum DISP_MODULE_ENUM module,
-	struct DDP_MODULE_DRIVER *drv);
 const char *ddp_get_module_dtname(enum DISP_MODULE_ENUM module);
 unsigned int ddp_get_module_checkirq(enum DISP_MODULE_ENUM module);
 unsigned long ddp_get_module_pa(enum DISP_MODULE_ENUM module);

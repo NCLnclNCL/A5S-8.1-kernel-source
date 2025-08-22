@@ -85,10 +85,12 @@
 #include "ddp_rsz.h"
 
 #ifdef VENDOR_EDIT
-/* Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10, Add for sau and silence close backlight */
+/*
+* Ling.Guo@PSW.MM.Display.LCD.Stability, 2018/11/12,
+* add display feature interface
+*/
 #include <mt-plat/mtk_boot_common.h>
-extern unsigned long silence_mode;
-#endif
+#endif /*VENDOR_EDIT*/
 
 #define DDP_OUTPUT_LAYID 4
 
@@ -127,6 +129,34 @@ static int mtk_disp_mgr_release(struct inode *inode, struct file *file)
 
 static int mtk_disp_mgr_flush(struct file *a_pstFile, fl_owner_t a_id)
 {
+	return 0;
+}
+
+static int mtk_disp_mgr_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	static const unsigned long addr_min = 0x14000000;
+	static const unsigned long addr_max = 0x14025000;
+	static const unsigned long size = addr_max - addr_min;
+	const unsigned long require_size = vma->vm_end - vma->vm_start;
+	unsigned long pa_start = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long pa_end = pa_start + require_size;
+
+	DISPDBG("mmap size %ld, vmpg0ff 0x%lx, pastart 0x%lx, paend 0x%lx\n",
+		require_size, vma->vm_pgoff, pa_start, pa_end);
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (require_size > size || (pa_start < addr_min ||
+		pa_end > addr_max)) {
+		DISPERR("mmap size range over flow!!\n");
+		return -EAGAIN;
+	}
+	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+		(vma->vm_end - vma->vm_start), vma->vm_page_prot)) {
+		DISPERR("display mmap failed!!\n");
+		return -EAGAIN;
+	}
+
 	return 0;
 }
 
@@ -667,11 +697,10 @@ int disp_input_free_dirty_roi(struct disp_frame_cfg_t *cfg)
 			break;
 		if (!cfg->input_cfg[i].layer_enable ||
 			!cfg->input_cfg[i].dirty_roi_num)
-			continue;
-		if (cfg->input_cfg[i].dirty_roi_addr != NULL) {
-			kfree(cfg->input_cfg[i].dirty_roi_addr);
-			cfg->input_cfg[i].dirty_roi_addr = NULL;
-		}
+			break;
+
+		kfree(cfg->input_cfg[i].dirty_roi_addr);
+		cfg->input_cfg[i].dirty_roi_addr = NULL;
 	}
 
 	return 0;
@@ -697,7 +726,7 @@ static int input_config_preprocess(struct disp_frame_cfg_t *cfg)
 			"set_%s_buffer, conf_layer_num invalid=%d, max_layer_num=%d!\n",
 			disp_session_mode_spy(session_id), cfg->input_layer_num,
 			_get_max_layer(session_id));
-		return -1;
+		return 0;
 	}
 
 	disp_input_get_dirty_roi(cfg);
@@ -739,7 +768,7 @@ static int input_config_preprocess(struct disp_frame_cfg_t *cfg)
 			dst_mva =
 				(unsigned long)(cfg->input_cfg[i].src_phy_addr);
 			if (!dst_mva) {
-				disp_sync_query_buf_info(
+				disp_sync_query_buf_info_nosync(
 				session_id, layer_id,
 				(unsigned int)cfg->input_cfg[i].next_buff_idx,
 				&dst_mva, &dst_size);
@@ -1011,10 +1040,7 @@ long _frame_config(unsigned long arg)
 	DISPDBG("%s\n", __func__);
 	frame_cfg->setter = SESSION_USER_HWC;
 
-	if (input_config_preprocess(frame_cfg) != 0) {
-		kfree(frame_cfg);
-		return -EINVAL;
-	}
+	input_config_preprocess(frame_cfg);
 	if (frame_cfg->output_en)
 		output_config_preprocess(frame_cfg);
 
@@ -1372,7 +1398,6 @@ int set_session_mode(struct disp_session_config *config_info, int force)
 
 int _ioctl_set_session_mode(unsigned long arg)
 {
-	int ret = -1;
 	void __user *argp = (void __user *)arg;
 	struct disp_session_config config_info;
 
@@ -1382,15 +1407,7 @@ int _ioctl_set_session_mode(unsigned long arg)
 			__LINE__);
 		return -EFAULT;
 	}
-
-	if (config_info.mode > DISP_INVALID_SESSION_MODE &&
-		config_info.mode < DISP_SESSION_MODE_NUM) {
-		ret = set_session_mode(&config_info, 0);
-	} else {
-		DISPERR("[FB]: session mode is invalid: %d\n",
-			config_info.mode);
-	}
-	return ret;
+	return set_session_mode(&config_info, 0);
 }
 
 const char *_session_ioctl_spy(unsigned int cmd)
@@ -1428,8 +1445,6 @@ const char *_session_ioctl_spy(unsigned int cmd)
 		return "DISP_IOCTL_AAL_GET_HIST";
 	case DISP_IOCTL_AAL_INIT_REG:
 		return "DISP_IOCTL_AAL_INIT_REG";
-	case DISP_IOCTL_SET_SMARTBACKLIGHT:
-		return "DISP_IOCTL_SET_SMARTBACKLIGHT";
 	case DISP_IOCTL_AAL_SET_PARAM:
 		return "DISP_IOCTL_AAL_SET_PARAM";
 	case DISP_IOCTL_SET_GAMMALUT:
@@ -1440,8 +1455,6 @@ const char *_session_ioctl_spy(unsigned int cmd)
 		return "DISP_IOCTL_CCORR_EVENTCTL";
 	case DISP_IOCTL_CCORR_GET_IRQ:
 		return "DISP_IOCTL_CCORR_GET_IRQ";
-	case DISP_IOCTL_SUPPORT_COLOR_TRANSFORM:
-		return "DISP_IOCTL_SUPPORT_COLOR_TRANSFORM";
 	case DISP_IOCTL_SET_PQPARAM:
 		return "DISP_IOCTL_SET_PQPARAM";
 	case DISP_IOCTL_GET_PQPARAM:
@@ -1513,13 +1526,6 @@ long mtk_disp_mgr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			return _ioctl_get_display_caps(arg);
 		}
-	#ifdef ODM_WT_EDIT
-	/* Zhenzhen.Wu@ODM_WT.Tuning.Display.LCD, 2019/12/7, add for multi-lcms */
-	case DISP_IOCTL_GET_LCM_MODULE_INFO:
-		{
-			return _ioctl_get_lcm_module_info(arg);
-		}
-	#endif /* VENDOR_EDIT */
 	case DISP_IOCTL_GET_VSYNC_FPS:
 		{
 			return _ioctl_get_vsync(arg);
@@ -1541,9 +1547,7 @@ long mtk_disp_mgr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return _ioctl_frame_config(arg);
 		}
 	case DISP_IOCTL_WAIT_ALL_JOBS_DONE:
-		{
 		return _ioctl_wait_all_jobs_done(arg);
-		}
 	case DISP_IOCTL_GET_LCMINDEX:
 		{
 			return primary_display_get_lcm_index();
@@ -1560,12 +1564,10 @@ long mtk_disp_mgr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case DISP_IOCTL_AAL_GET_HIST:
 	case DISP_IOCTL_AAL_INIT_REG:
 	case DISP_IOCTL_AAL_SET_PARAM:
-	case DISP_IOCTL_SET_SMARTBACKLIGHT:
 	case DISP_IOCTL_SET_GAMMALUT:
 	case DISP_IOCTL_SET_CCORR:
 	case DISP_IOCTL_CCORR_EVENTCTL:
 	case DISP_IOCTL_CCORR_GET_IRQ:
-	case DISP_IOCTL_SUPPORT_COLOR_TRANSFORM:
 	case DISP_IOCTL_SET_PQPARAM:
 	case DISP_IOCTL_GET_PQPARAM:
 	case DISP_IOCTL_SET_PQINDEX:
@@ -1653,18 +1655,6 @@ const char *_session_compat_ioctl_spy(unsigned int cmd)
 		{
 			return "DISP_IOCTL_SET_SESSION_MODE";
 		}
-	case COMPAT_DISP_IOCTL_INSERT_SESSION_BUFFERS:
-		{
-			return "DISP_IOCTL_INSERT_SESSION_BUFFERS";
-		}
-	case COMPAT_DISP_IOCTL_QUERY_VALID_LAYER:
-		{
-			return "DISP_IOCTL_QUERY_VALID_LAYER";
-		}
-	case COMPAT_DISP_IOCTL_SET_SCENARIO:
-		{
-			return "DISP_IOCTL_SET_SCENARIO";
-		}
 	default:
 		{
 			return "unknown";
@@ -1676,6 +1666,7 @@ static long mtk_disp_mgr_compat_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
 	long ret = -ENOIOCTLCMD;
+	void __user *data32 = compat_ptr(arg);
 
 	switch (cmd) {
 	case COMPAT_DISP_IOCTL_CREATE_SESSION:
@@ -1740,28 +1731,19 @@ static long mtk_disp_mgr_compat_ioctl(struct file *file, unsigned int cmd,
 	{
 		return _compat_ioctl_set_output_buffer(file, arg);
 	}
-	case COMPAT_DISP_IOCTL_INSERT_SESSION_BUFFERS:
+	case DISP_IOCTL_SET_SCENARIO:
 	{
-		return _compat_ioctl_inset_session_buffer(file, arg);
-	}
-	case COMPAT_DISP_IOCTL_QUERY_VALID_LAYER:
-	{
-		return _compat_ioctl_query_valid_layer(file, arg);
-	}
-	case COMPAT_DISP_IOCTL_SET_SCENARIO:
-	{
-		return _compat_ioctl_set_scenario(file, arg);
-	}
-	case COMPAT_DISP_IOCTL_WAIT_ALL_JOBS_DONE:
-	{
-		return _compat_ioctl_wait_all_jobs_done(file, arg);
+		/* arg of this ioctl is all unsigned int,
+		 * don't need special compat ioctl
+		 */
+		return file->f_op->unlocked_ioctl(file, cmd,
+			(unsigned long)data32);
 	}
 
 	case DISP_IOCTL_AAL_GET_HIST:
 	case DISP_IOCTL_AAL_EVENTCTL:
 	case DISP_IOCTL_AAL_INIT_REG:
 	case DISP_IOCTL_AAL_SET_PARAM:
-	case DISP_IOCTL_SET_SMARTBACKLIGHT:
 #ifndef NO_PQ_IOCTL
 		{
 			void __user *data32;
@@ -1776,7 +1758,6 @@ static long mtk_disp_mgr_compat_ioctl(struct file *file, unsigned int cmd,
 	case DISP_IOCTL_SET_CCORR:
 	case DISP_IOCTL_CCORR_EVENTCTL:
 	case DISP_IOCTL_CCORR_GET_IRQ:
-	case DISP_IOCTL_SUPPORT_COLOR_TRANSFORM:
 	case DISP_IOCTL_SET_PQPARAM:
 	case DISP_IOCTL_GET_PQPARAM:
 	case DISP_IOCTL_SET_PQINDEX:
@@ -1812,16 +1793,9 @@ static long mtk_disp_mgr_compat_ioctl(struct file *file, unsigned int cmd,
 
 	default:
 		{
-			void __user *data32;
-
-			data32 = compat_ptr(arg);
-			ret = file->f_op->unlocked_ioctl(file,
-						cmd, (unsigned long)data32);
-			if (ret)
-				DISPERR("[%s]not supported 0x%08x\n",
-					__func__, cmd);
-
-			return ret;
+			DISPWARN("[%s]ioctl not supported, 0x%08x\n",
+				__func__, cmd);
+			return -ENOIOCTLCMD;
 		}
 	}
 
@@ -1829,8 +1803,10 @@ static long mtk_disp_mgr_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+
 static const struct file_operations mtk_disp_mgr_fops = {
 	.owner = THIS_MODULE,
+	.mmap = mtk_disp_mgr_mmap,
 	.unlocked_ioctl = mtk_disp_mgr_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = mtk_disp_mgr_compat_ioctl,
@@ -1842,46 +1818,86 @@ static const struct file_operations mtk_disp_mgr_fops = {
 	.read = mtk_disp_mgr_read,
 };
 
-#ifdef ODM_WT_EDIT
-//Wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/15, Add ffl function
-unsigned int ffl_set_mode = 0;
-unsigned int ffl_backlight_on = 0;
-extern bool ffl_trigger_finish;
-extern void ffl_set_enable(unsigned int enable);
-static ssize_t FFL_SET_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+#ifdef VENDOR_EDIT
+/*
+* Ling.Guo@PSW.MM.Display.LCD.Machine, 2018/11/12,
+* add display feature interface
+*/
+unsigned long CABC_mode = 2;
+
+extern int primary_display_set_cabc_mode(unsigned int level);
+extern void disp_aal_set_dre_en(int enable);
+
+static ssize_t LCM_CABC_show(struct device *dev,
+                struct device_attribute *attr, char *buf)
 {
-	printk("%s ffl_set_mode=%d\n", __func__, ffl_set_mode);
-	return sprintf(buf, "%d\n", ffl_set_mode);
+    printk("%s CABC_mode=%ld\n", __func__, CABC_mode);
+    return sprintf(buf, "%ld\n", CABC_mode);
 }
 
-static ssize_t FFL_SET_store(struct device *dev,
+static ssize_t LCM_CABC_store(struct device *dev,
+        struct device_attribute *attr, const char *buf, size_t num)
+{
+    int ret = 0;
+
+    ret = kstrtoul(buf, 10, &CABC_mode);
+    if( CABC_mode > 3 ){
+        CABC_mode = 3;
+    }
+    printk("%s CABC_mode=%ld\n", __func__, CABC_mode);
+
+    /*
+    * add dre only use for camera
+    */
+    if (CABC_mode == 0) {
+        disp_aal_set_dre_en(1);
+        printk("%s enable dre\n", __func__);
+    } else {
+        disp_aal_set_dre_en(0);
+        printk("%s disable dre\n", __func__);
+    }
+
+    ret = primary_display_set_cabc_mode((unsigned int)CABC_mode);
+
+    return num;
+}
+
+static DEVICE_ATTR(LCM_CABC, 0644, LCM_CABC_show, LCM_CABC_store);
+
+unsigned long silence_mode = 0;
+static ssize_t silence_show(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	printk("%s silence_mode=%ld\n", __func__, silence_mode);
+	return sprintf(buf, "%ld\n", silence_mode);
+}
+
+static ssize_t silence_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t num)
 {
 	int ret;
 
-	ret = kstrtouint(buf, 10, &ffl_set_mode);
+	ret = kstrtoul(buf, 10, &silence_mode);
 
-	printk("%s ffl_set_mode=%d\n", __func__, ffl_set_mode);
-
-	if (ffl_trigger_finish && (ffl_backlight_on == 1) && (ffl_set_mode == 1)) {
-		ffl_set_enable(1);
-	}
+	printk("%s silence_mode=%ld\n", __func__, silence_mode);
 
 	return num;
 }
-
-static DEVICE_ATTR(FFL_SET, 0644, FFL_SET_show, FFL_SET_store);
-#endif
+static DEVICE_ATTR(silence, 0644, silence_show, silence_store);
+#endif /* VENDOR_EDIT */
 
 static int mtk_disp_mgr_probe(struct platform_device *pdev)
 {
 	struct class_device;
 	struct class_device *class_dev = NULL;
-#ifdef ODM_WT_EDIT
-	struct device *dev =NULL;
-#endif
 	int ret;
+	#ifdef VENDOR_EDIT
+	/*
+	* Ling.Guo@PSW.MM.Display.LCD.Machine, 2018/11/12,
+	* add display feature interface
+	*/
+	struct device *dev =NULL;
+	#endif /* VENDOR_EDIT */
 
 	pr_debug("mtk_disp_mgr_probe called!\n");
 
@@ -1905,8 +1921,18 @@ static int mtk_disp_mgr_probe(struct platform_device *pdev)
 	    (struct class_device *)device_create(mtk_disp_mgr_class, NULL,
 	    mtk_disp_mgr_devno, NULL,
 						 DISP_SESSION_DEVICE);
-#ifdef VENDOR_EDIT
-/* Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10, Add for sau and silence close backlight */
+	#ifdef VENDOR_EDIT
+	/*
+	* Ling.Guo@PSW.MM.Display.LCD.Machine, 2018/11/12,
+	* add display feature interface
+	*/
+	dev =(struct device *) class_dev;
+	ret = device_create_file(dev, &dev_attr_LCM_CABC);
+	if (ret < 0)
+	{
+		printk("%s cabc device create file failed!\n", __func__);
+	}
+
 	if ((oppo_boot_mode == OPPO_SILENCE_BOOT)
 			||(get_boot_mode() == OPPO_SAU_BOOT))
 	{
@@ -1914,15 +1940,13 @@ static int mtk_disp_mgr_probe(struct platform_device *pdev)
 		silence_mode = 1;
 	}
 
-#endif
- #ifdef ODM_WT_EDIT
-//Wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/15, Add ffl function
-	dev =(struct device *) class_dev;
-	ret = device_create_file(dev, &dev_attr_FFL_SET);
-	if (ret < 0) {
-		printk("%s FFL_SET device create file failed!\n", __func__);
+	ret = device_create_file(dev, &dev_attr_silence);
+	if (ret < 0)
+	{
+		printk("%s device create file failed!\n", __func__);
 	}
-#endif
+	#endif /*VENDOR_EDIT*/
+
 	disp_sync_init();
 
 	external_display_control_init();

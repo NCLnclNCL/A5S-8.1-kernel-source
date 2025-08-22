@@ -396,7 +396,7 @@ static void bmp_adjust(void *buf, int size, int w, int h)
 struct test_buf_info {
 	struct ion_client *ion_client;
 #ifdef CONFIG_MTK_M4U
-	struct m4u_client_t *m4u_client;
+	m4u_client_t *m4u_client;
 #endif
 	struct ion_handle *handle;
 	size_t size;
@@ -915,7 +915,7 @@ static void process_dbg_opt(const char *opt)
 {
 	int ret;
 
-	DISPMSG("disp debug cmd %s\n", opt);
+	DISPWARN("disp debug cmd %s\n", opt);
 
 	if (strncmp(opt, "helper", 6) == 0) {
 		/*ex: echo helper:DISP_OPT_BYPASS_OVL,0 > /d/mtkfb */
@@ -1194,13 +1194,11 @@ static void process_dbg_opt(const char *opt)
 	} else if (strncmp(opt, "lcm0_reset", 10) == 0) {
 		DISPCHECK("lcm0_reset\n");
 #if 1
-		if (pgc->state == DISP_ALIVE) {
-			DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 1);
-			msleep(20);
-			DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 0);
-			msleep(20);
-			DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 1);
-		}
+		DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 1);
+		msleep(20);
+		DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 0);
+		msleep(20);
+		DISP_CPU_REG_SET(DISP_REG_CONFIG_MMSYS_LCM_RST_B, 1);
 #else
 #ifdef CONFIG_MTK_LEGACY
 		mt_set_gpio_mode(GPIO106 | 0x80000000, GPIO_MODE_00);
@@ -1363,6 +1361,7 @@ static void process_dbg_opt(const char *opt)
 			"Display debug command: disp_get_fps done, disp_fps=%d\n",
 			disp_fps);
 	} else if (strncmp(opt, "set_emi_bound_tb:", 17) == 0) {
+
 		do_set_emi_bound_tb_opt(opt);
 	} else if (strncmp(opt, "primary_basic_test:", 19) == 0) {
 		unsigned int layer_num, w, h, fmt, frame_num;
@@ -1486,29 +1485,6 @@ static void process_dbg_opt(const char *opt)
 			round_corner_offset_enable = 1;
 		else if (strncmp(opt + 26, "off", 3) == 0)
 			round_corner_offset_enable = 0;
-	} else if (strncmp(opt, "MIPI_CLK:", 9) == 0) {
-		if (strncmp(opt + 9, "on", 2) == 0)
-			mipi_clk_change(0, 1);
-		else if (strncmp(opt + 9, "off", 3) == 0)
-			mipi_clk_change(0, 0);
-	}
-	if (strncmp(opt, "change_mipi_date_rate:", 16) == 0) {
-		int mipi_date_rate = 0;
-
-		ret = sscanf(opt, "change_mipi_date_rate:%d\n",
-			&mipi_date_rate);
-		if (ret != 1) {
-			DISPWARN("%d error to parse cmd %s\n",
-				__LINE__, opt);
-			return;
-		}
-		if (mipi_date_rate == 0)
-			mipi_clk_change_by_data_rate(0, mipi_date_rate);
-		else
-			mipi_clk_change_by_data_rate(1, mipi_date_rate);
-
-		DISPMSG("change mipi_date_rate to %dMhz\n",
-			mipi_date_rate);
 	} else if (strncmp(opt, "dump_output:", 12) == 0) {
 		if (strncmp(opt + 12, "on", 2) == 0)
 			dump_output = 1;
@@ -1734,24 +1710,6 @@ static int idletime_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(idletime_fops, idletime_get, idletime_set, "%llu\n");
 
-static int idlevfp_set(void *data, u64 val)
-{
-
-	if (val > 4095)
-		val = 4095;
-
-	backup_vfp_for_lp_cust((unsigned int)val);
-	return 0;
-}
-
-static int idlevfp_get(void *data, u64 *val)
-{
-	*val = (u64)get_backup_vfp();
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(idlevfp_fops, idlevfp_get, idlevfp_set, "%llu\n");
-
 void DBG_Init(void)
 {
 	struct dentry *d_folder;
@@ -1768,8 +1726,6 @@ void DBG_Init(void)
 			S_IFREG | 0444, d_folder, NULL, &partial_fops);
 		d_file = debugfs_create_file("idletime",
 			S_IFREG | 0666, d_folder, NULL, &idletime_fops);
-		d_file = debugfs_create_file("idlevfp",
-			S_IFREG | 0666, d_folder, NULL, &idlevfp_fops);
 	}
 }
 

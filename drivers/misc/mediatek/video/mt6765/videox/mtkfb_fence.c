@@ -408,32 +408,26 @@ static size_t mtkfb_ion_phys_mmu_addr(struct ion_client *client,
 }
 
 static void mtkfb_ion_cache_flush(struct ion_client *client,
-				struct ion_handle *handle, unsigned int size)
+	struct ion_handle *handle)
 {
 	struct ion_sys_data sys_data;
-	void *va = NULL;
 
 	if (!ion_client || !handle)
 		return;
 
-	va = ion_map_kernel(client, handle);
 	sys_data.sys_cmd = ION_SYS_CACHE_SYNC;
 	sys_data.cache_sync_param.kernel_handle = handle;
-	sys_data.cache_sync_param.va = va;
-	sys_data.cache_sync_param.size = size;
-	sys_data.cache_sync_param.sync_type = ION_CACHE_FLUSH_BY_RANGE;
+	sys_data.cache_sync_param.sync_type = ION_CACHE_FLUSH_ALL;
 
 	if (ion_kernel_ioctl(client, ION_CMD_SYSTEM, (unsigned long)&sys_data))
 		pr_info("ion cache flush failed!\n");
-
-	ion_unmap_kernel(client, handle);
 }
 #endif /* #if defined (MTK_FB_ION_SUPPORT) */
 
 unsigned int mtkfb_query_buf_mva(unsigned int session_id,
 	unsigned int layer_id, unsigned int idx)
 {
-	struct mtkfb_fence_buf_info *buf = NULL;
+	struct mtkfb_fence_buf_info *buf;
 	unsigned int mva = 0x0;
 	struct disp_sync_info *layer_info = NULL;
 
@@ -459,8 +453,8 @@ unsigned int mtkfb_query_buf_mva(unsigned int session_id,
 			mmprofile_log_ex(
 				ddp_mmp_get_events()->primary_cache_sync,
 				MMPROFILE_FLAG_START, current->pid, 0);
-		mtkfb_ion_cache_flush(ion_client, buf->hnd, buf->size);
-		mmprofile_log_ex(
+			mtkfb_ion_cache_flush(ion_client, buf->hnd);
+			mmprofile_log_ex(
 				ddp_mmp_get_events()->primary_cache_sync,
 				MMPROFILE_FLAG_END, current->pid, 0);
 		}
@@ -1343,7 +1337,7 @@ unsigned int disp_sync_buf_cache_sync(unsigned int session_id,
 		if (buf->cache_sync) {
 			dprec_logger_start(DPREC_LOGGER_DISPMGR_CACHE_SYNC,
 				(unsigned long)buf->hnd, buf->mva);
-			mtkfb_ion_cache_flush(ion_client, buf->hnd, buf->size);
+			mtkfb_ion_cache_flush(ion_client, buf->hnd);
 			dprec_logger_done(DPREC_LOGGER_DISPMGR_CACHE_SYNC,
 				(unsigned long)buf->hnd, buf->mva);
 		}
@@ -1399,7 +1393,7 @@ static unsigned int __disp_sync_query_buf_info(unsigned int session_id,
 		if (buf->cache_sync && need_sync) {
 			dprec_logger_start(DPREC_LOGGER_DISPMGR_CACHE_SYNC,
 				(unsigned long)buf->hnd, buf->mva);
-			mtkfb_ion_cache_flush(ion_client, buf->hnd, buf->size);
+			mtkfb_ion_cache_flush(ion_client, buf->hnd);
 			dprec_logger_done(DPREC_LOGGER_DISPMGR_CACHE_SYNC,
 				(unsigned long)buf->hnd, buf->mva);
 		}
