@@ -224,7 +224,7 @@ static unsigned int is_entering_suspend;
 
 void *KVA_VENC_IRQ_ACK_ADDR, *KVA_VENC_IRQ_STATUS_ADDR, *KVA_VENC_BASE;
 void *KVA_VDEC_MISC_BASE, *KVA_VDEC_VLD_BASE;
-void *KVA_VDEC_BASE, *KVA_VDEC_GCON_BASE;
+void *KVA_VDEC_BASE, *KVA_VDEC_GCON_BASE, *KVA_MBIST_BASE;
 unsigned int VENC_IRQ_ID, VDEC_IRQ_ID;
 
 /* #define KS_POWER_WORKAROUND */
@@ -408,6 +408,11 @@ void vdec_power_on(void)
 		/* print error log & error handling */
 		pr_info("[VCODEC] MT_CG_VDEC is not on, ret = %d\n", ret);
 	}
+#if defined(CONFIG_MACH_MT6761)
+	/* GF14 type SRAM  power on config */
+	VDO_HW_WRITE(KVA_MBIST_BASE, 0x93CEB);
+#endif
+
 }
 
 #ifdef VCODEC_DEBUG_SYS
@@ -438,16 +443,15 @@ void vdec_power_off(void)
 {
 
 	mutex_lock(&VdecPWRLock);
-	/* cervino VCODEC_SEL reset */
-	do {
-		VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 0x20, 0);
-	} while (VDO_HW_READ(KVA_VDEC_GCON_BASE + 0x20) != 0);
-
 	if (gu4VdecPWRCounter == 0) {
 		pr_debug("[VCODEC] gu4VdecPWRCounter = 0\n");
 	} else {
-
 		vdec_polling_status();
+		/* VCODEC_SEL reset */
+		do {
+			VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 0x20, 0);
+		} while (VDO_HW_READ(KVA_VDEC_GCON_BASE + 0x20) != 0);
+
 		gu4VdecPWRCounter--;
 
 		clk_disable_unprepare(clk_MT_CG_VDEC);
@@ -528,6 +532,10 @@ void venc_power_on(void)
 		pr_info("[VENC] MT_CG_VENC is not on, ret = %d\n",
 				ret);
 	}
+#if defined(CONFIG_MACH_MT6761)
+	/* GF14 type SRAM  power on config */
+	VDO_HW_WRITE(KVA_MBIST_BASE, 0x93CEB);
+#endif
 }
 
 void venc_power_off(void)
@@ -618,6 +626,11 @@ void vdec_break(void)
 	/* Step 3: software reset */
 	VDO_HW_WRITE(KVA_VDEC_BASE + 66*4, 0x1);
 	VDO_HW_WRITE(KVA_VDEC_BASE + 66*4, 0x0);
+
+	/* Step 4: VCODEC reset control, include VDEC/VENC/JPGENC */
+	VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 5*4, 0x1);
+	VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 3*4, 0x1);
+
 }
 
 void venc_break(void)
@@ -1057,18 +1070,7 @@ static long vcodec_lockhw_vdec(struct VAL_HW_LOCK_T *pHWLock, char *bLockedHW)
 			 */
 
 			*bLockedHW = VAL_TRUE;
-			if (eValRet == VAL_RESULT_INVALID_ISR &&
-				FirstUseDecHW != 1) {
-				pr_info("[WARN] reset pwr/irq when HWLock");
-#ifdef CONFIG_PM
-				pm_runtime_put_sync(vcodec_device);
-#else
-#ifndef KS_POWER_WORKAROUND
-				vdec_power_off();
-#endif
-#endif
-				disable_irq(VDEC_IRQ_ID);
-			}
+
 #ifdef VCODEC_DVFS_V2
 			mutex_lock(&VcodecDVFSLock);
 			if (cur_job == 0) {
@@ -2238,7 +2240,7 @@ struct COMPAT_VAL_HW_LOCK_T {
 	/* [IN]     The driver type */
 	compat_uint_t       eDriverType;
 	/* [IN]     True if this is a secure instance */
-	/* // MTK_SEC_VIDEO_PATH_SUPPORT */
+	/* MTK_SEC_VIDEO_PATH_SUPPORT */
 	char                bSecureInst;
 };
 
@@ -2845,7 +2847,11 @@ static int vcodec_release(struct inode *inode, struct file *file)
 			} else if (CodecHWLock.eDriverType ==
 					VAL_DRIVER_TYPE_JPEG_ENC) {
 				disable_irq(VENC_IRQ_ID);
+#ifdef CONFIG_PM
+				pm_runtime_put_sync(vcodec_device2);
+#else
 				venc_power_off();
+#endif
 			}
 		}
 
@@ -3333,6 +3339,16 @@ static int __init vcodec_driver_init(void)
 		KVA_VDEC_MISC_BASE = KVA_VDEC_BASE + 0x5000;
 		KVA_VDEC_VLD_BASE = KVA_VDEC_BASE + 0x0000;
 	}
+
+#if defined(CONFIG_MACH_MT6761)
+	{
+		struct device_node *node = NULL;
+
+		node = of_find_compatible_node(NULL, NULL, "mediatek,mbist");
+		KVA_MBIST_BASE = of_iomap(node, 0);
+	}
+#endif
+
 	{
 		struct device_node *node = NULL;
 
@@ -3340,8 +3356,14 @@ static int __init vcodec_driver_init(void)
 						"mediatek,venc_gcon");
 		KVA_VDEC_GCON_BASE = of_iomap(node, 0);
 
+#if defined(CONFIG_MACH_MT6761)
+		pr_debug("[VCODEC] VENC(0x%p), VDEC(0x%p), GCON(0x%p), MBIST(0x%p)",
+			KVA_VENC_BASE, KVA_VDEC_BASE,
+			KVA_VDEC_GCON_BASE, KVA_MBIST_BASE);
+#elif defined(CONFIG_MACH_MT6765)
 		pr_debug("[VCODEC] VENC(0x%p), VDEC(0x%p), VDEC_GCON(0x%p)",
 			KVA_VENC_BASE, KVA_VDEC_BASE, KVA_VDEC_GCON_BASE);
+#endif
 		pr_debug("[VCODEC] VDEC_IRQ_ID(%d), VENC_IRQ_ID(%d)",
 			VDEC_IRQ_ID, VENC_IRQ_ID);
 	}
@@ -3400,8 +3422,8 @@ static int __init vcodec_driver_init(void)
 
 	/* HWLockEvent part */
 	mutex_lock(&HWLockEventTimeoutLock);
-	HWLockEvent.pvHandle = "DECHWLOCK_EVENT";
-	HWLockEvent.u4HandleSize = sizeof("DECHWLOCK_EVENT")+1;
+	HWLockEvent.pvHandle = "VCODECHWLOCK_EVENT";
+	HWLockEvent.u4HandleSize = sizeof("VCODECHWLOCK_EVENT")+1;
 	HWLockEvent.u4TimeoutMs = 1;
 	mutex_unlock(&HWLockEventTimeoutLock);
 	eValHWLockRet = eVideoCreateEvent(&HWLockEvent,
@@ -3410,21 +3432,7 @@ static int __init vcodec_driver_init(void)
 		/* Add one line comment for avoid kernel coding style,
 		 * WARNING:BRACES:
 		 */
-		pr_info("[VCODEC][ERROR] create dec hwlock event error\n");
-	}
-
-	mutex_lock(&HWLockEventTimeoutLock);
-	HWLockEvent.pvHandle = "ENCHWLOCK_EVENT";
-	HWLockEvent.u4HandleSize = sizeof("ENCHWLOCK_EVENT")+1;
-	HWLockEvent.u4TimeoutMs = 1;
-	mutex_unlock(&HWLockEventTimeoutLock);
-	eValHWLockRet = eVideoCreateEvent(&HWLockEvent,
-					sizeof(struct VAL_EVENT_T));
-	if (eValHWLockRet != VAL_RESULT_NO_ERROR) {
-		/* Add one line comment for avoid kernel coding style,
-		 * WARNING:BRACES:
-		 */
-		pr_info("[VCODEC][ERROR] create enc hwlock event error\n");
+		pr_info("[VCODEC][ERROR] create vcodec hwlock event error\n");
 	}
 
 #ifdef VCODEC_DVFS_V2
