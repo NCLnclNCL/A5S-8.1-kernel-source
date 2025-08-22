@@ -2085,7 +2085,7 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 
 	return disable_charging;
 }
-signed int battery_get_uisoc(void)
+signed int battery_get_uisoc_v2(void)
 {
 	//int boot_mode = get_boot_mode();
 
@@ -2101,7 +2101,7 @@ static void chg_work()
 {
 	bool disable_pwrsrc = false;
 	int disable_charging = 0;
-	int capacity = battery_get_uisoc();
+	int capacity = battery_get_uisoc_v2();
 //	int rc;
 //	union power_supply_propval pval = {0,};
 //struct charger_manager *pinfo = arg;
