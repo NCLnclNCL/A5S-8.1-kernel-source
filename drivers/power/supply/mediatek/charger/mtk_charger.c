@@ -2085,22 +2085,22 @@ static void chg_work()
 {
 	bool disable_pwrsrc = false;
 	int disable_charging = 0;
-	int rc;
-	union power_supply_propval pval = {0,};
+//	int rc;
+//	union power_supply_propval pval = {0,};
 //struct charger_manager *pinfo = arg;
-	rc = power_supply_get_property(pinfo->psy_nb.notifier_call,
-			POWER_SUPPLY_PROP_CAPACITY, &pval);
-	if (rc < 0) {
-		pr_err("ffc Couldn't get bms capacity:%d\n", rc);
-		goto out;
-	}
+//	rc = power_supply_get_property(pinfo->psy_nb.notifier_call,
+//			POWER_SUPPLY_PROP_CAPACITY, &pval);
+//	if (rc < 0) {
+//		pr_err("ffc Couldn't get bms capacity:%d\n", rc);
+//		goto out;
+//	}
 	if (pinfo == NULL)
 	{
 		chr_err("pinfo==NULL\n");
 	}
 	else
 	{
-	disable_charging = is_charging_disabled( pval.intval);
+	disable_charging = is_charging_disabled( get_mtk_battery()->ui_soc);
 	if (disable_charging && pval.intval > pinfo->charge_stop_level)
 		disable_pwrsrc = true;
 	else
