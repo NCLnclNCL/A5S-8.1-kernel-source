@@ -2039,8 +2039,8 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 		if((pinfo->cmd_discharging == false)||s_pingpong==1)
 		{
 			info->cmd_discharging = true;
-			charger_dev_enable(info->chg1_dev, false);
-			charger_manager_notifier(info,
+			charger_dev_enable(pinfo->chg1_dev, false);
+			charger_manager_notifier(pinfo,
 						CHARGER_NOTIFY_STOP_CHARGING);
 		}
 		s_pingpong = 0;
@@ -2051,8 +2051,8 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 		if(pinfo->cmd_discharging == false)
 		{
 			info->cmd_discharging = true;
-			charger_dev_enable(info->chg1_dev, false);
-			charger_manager_notifier(info,
+			charger_dev_enable(pinfo->chg1_dev, false);
+			charger_manager_notifier(pinfo,
 						CHARGER_NOTIFY_STOP_CHARGING);
 		}
 		
@@ -2064,8 +2064,8 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 		if((pinfo->cmd_discharging == true)||s_pingpong==0)
 		{
 			info->cmd_discharging = false;
-			charger_dev_enable(info->chg1_dev, true);
-			charger_manager_notifier(info,
+			charger_dev_enable(pinfo->chg1_dev, true);
+			charger_manager_notifier(pinfo,
 						CHARGER_NOTIFY_START_CHARGING);
 		}
 		s_pingpong = 1;
@@ -2075,8 +2075,8 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 		if(pinfo->cmd_discharging == true)
 		{
 			info->cmd_discharging = false;
-			charger_dev_enable(info->chg1_dev, true);
-			charger_manager_notifier(info,
+			charger_dev_enable(pinfo->chg1_dev, true);
+			charger_manager_notifier(pinfo,
 						CHARGER_NOTIFY_START_CHARGING);
 		}
 
