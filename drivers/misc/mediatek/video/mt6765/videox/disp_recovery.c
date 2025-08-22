@@ -81,6 +81,7 @@ static wait_queue_head_t esd_ext_te_wq;
 static atomic_t esd_ext_te_event = ATOMIC_INIT(0);
 static unsigned int esd_check_mode;
 static unsigned int esd_check_enable;
+unsigned int esd_checking;
 
 #if defined(CONFIG_MTK_DUAL_DISPLAY_SUPPORT) && \
 	(CONFIG_MTK_DUAL_DISPLAY_SUPPORT == 2)
@@ -194,12 +195,17 @@ int _esd_check_config_handle_vdo(struct cmdqRecStruct *qhandle)
 
 	/* 1.reset */
 	cmdqRecReset(qhandle);
-
+	/*set esd check read timeout 200ms*/
+	/*remove to dts*/
+	/*cmdq_task_set_timeout(qhandle, 200);*/
 	/* wait stream eof first */
 	/* cmdqRecWait(qhandle, CMDQ_EVENT_DISP_RDMA0_EOF); */
 	cmdqRecWait(qhandle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
 
 	primary_display_manual_lock();
+
+	esd_checking = 1;
+
 	/* 2.stop dsi vdo mode */
 	dpmgr_path_build_cmdq(phandle, qhandle, CMDQ_STOP_VDO_MODE, 0);
 
@@ -421,6 +427,176 @@ destroy_cmdq:
 	return ret;
 }
 
+int do_lcm_vdo_lp_read(struct ddp_lcm_read_cmd_table *read_table)
+{
+	int ret = 0;
+	int i = 0;
+	struct cmdqRecStruct *handle;
+	static cmdqBackupSlotHandle read_Slot;
+
+	primary_display_manual_lock();
+
+	if (primary_get_state() == DISP_SLEPT) {
+		DISPINFO("primary display path is slept?? -- skip read\n");
+		primary_display_manual_unlock();
+		return -1;
+	}
+
+	/* 0.create esd check cmdq */
+	cmdqRecCreate(CMDQ_SCENARIO_DISP_ESD_CHECK, &handle);
+	cmdqBackupAllocateSlot(&read_Slot, 3);
+	for (i = 0; i < 3; i++)
+		cmdqBackupWriteSlot(read_Slot, i, 0xff00ff00);
+
+	/* 1.use cmdq to read from lcm */
+	if (primary_display_is_video_mode()) {
+
+	/* 1.reset */
+	cmdqRecReset(handle);
+
+	/* wait stream eof first */
+	/*cmdqRecWait(handle, CMDQ_EVENT_DISP_RDMA0_EOF);*/
+	cmdqRecWait(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
+
+	/* 2.stop dsi vdo mode */
+	dpmgr_path_build_cmdq(primary_get_dpmgr_handle(),
+		handle, CMDQ_STOP_VDO_MODE, 0);
+
+	/* 3.read from lcm */
+	ddp_dsi_read_lcm_cmdq(DISP_MODULE_DSI0, &read_Slot, handle, read_table);
+
+	/* 4.start dsi vdo mode */
+	dpmgr_path_build_cmdq(primary_get_dpmgr_handle(),
+		handle, CMDQ_START_VDO_MODE, 0);
+
+	cmdqRecClearEventToken(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
+
+	/* 5. trigger path */
+	dpmgr_path_trigger(primary_get_dpmgr_handle(), handle, CMDQ_ENABLE);
+
+	/*	mutex sof wait*/
+	ddp_mutex_set_sof_wait(dpmgr_path_get_mutex(primary_get_dpmgr_handle()),
+		handle, 0);
+
+
+	/* 6.flush instruction */
+	ret = cmdqRecFlush(handle);
+
+	} else {
+		DISPINFO("Not support cmd mode\n");
+	}
+
+	if (ret == 1) {	/* cmdq fail */
+		if (need_wait_esd_eof()) {
+			/* Need set esd check eof */
+			/*synctoken to let trigger loop go. */
+			cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_ESD_EOF);
+		}
+		/* do dsi reset */
+		dpmgr_path_build_cmdq(primary_get_dpmgr_handle(), handle,
+			 CMDQ_DSI_RESET, 0);
+		goto DISPTORY;
+	}
+
+	for (i = 0; i < 3; i++)
+		cmdqBackupReadSlot(read_Slot, i,
+		(uint32_t *)&read_table->data[i]);
+
+DISPTORY:
+	if (read_Slot) {
+		cmdqBackupFreeSlot(read_Slot);
+		read_Slot = 0;
+	}
+
+	/* 7.destroy esd config thread */
+	cmdqRecDestroy(handle);
+	primary_display_manual_unlock();
+
+	return ret;
+}
+
+int do_lcm_vdo_lp_write(struct ddp_lcm_write_cmd_table *write_table,
+			unsigned int count)
+{
+	int ret = 0;
+	int i = 0;
+	struct cmdqRecStruct *handle;
+
+	primary_display_manual_lock();
+
+	if (primary_get_state() == DISP_SLEPT) {
+		DISPINFO("primary display path is slept?? -- skip read\n");
+		primary_display_manual_unlock();
+		return -1;
+	}
+
+	/* 0.create esd check cmdq */
+	cmdqRecCreate(CMDQ_SCENARIO_DISP_ESD_CHECK, &handle);
+
+	/* 1.use cmdq to read from lcm */
+	if (primary_display_is_video_mode()) {
+
+	/* 1.reset */
+	cmdqRecReset(handle);
+
+	/* wait stream eof first */
+	cmdqRecWait(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
+
+	/* 2.stop dsi vdo mode */
+	dpmgr_path_build_cmdq(primary_get_dpmgr_handle(),
+				handle, CMDQ_STOP_VDO_MODE, 0);
+
+	/* 3.write instruction */
+	for (i = 0; i < count; i++) {
+		ret = ddp_dsi_write_lcm_cmdq(DISP_MODULE_DSI0,
+			handle, write_table[i].cmd,
+			write_table[i].count,
+			write_table[i].para_list);
+		if (ret)
+			break;
+	}
+
+	/* 4.start dsi vdo mode */
+	dpmgr_path_build_cmdq(primary_get_dpmgr_handle(),
+		handle, CMDQ_START_VDO_MODE, 0);
+
+	cmdqRecClearEventToken(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
+
+	/* 5. trigger path */
+	dpmgr_path_trigger(primary_get_dpmgr_handle(), handle, CMDQ_ENABLE);
+
+	/*	mutex sof wait*/
+	ddp_mutex_set_sof_wait(dpmgr_path_get_mutex(
+		primary_get_dpmgr_handle()), handle, 0);
+
+
+	/* 6.flush instruction */
+	ret = cmdqRecFlush(handle);
+
+	} else {
+		DISPINFO("Not support cmd mode\n");
+	}
+
+	if (ret == 1) {	/* cmdq fail */
+		if (need_wait_esd_eof()) {
+			/* Need set esd check eof */
+			/*synctoken to let trigger loop go. */
+			cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_ESD_EOF);
+		}
+		/* do dsi reset */
+		dpmgr_path_build_cmdq(primary_get_dpmgr_handle(), handle,
+			CMDQ_DSI_RESET, 0);
+		goto DISPTORY;
+	}
+
+DISPTORY:
+	/* 7.destroy esd config thread */
+	cmdqRecDestroy(handle);
+	primary_display_manual_unlock();
+
+	return ret;
+}
+
 /**
  * ESD CHECK FUNCTION
  * return 1: esd check fail
@@ -437,12 +613,12 @@ int primary_display_esd_check(void)
 
 	dprec_logger_start(DPREC_LOGGER_ESD_CHECK, 0, 0);
 	mmprofile_log_ex(mmp_chk, MMPROFILE_FLAG_START, 0, 0);
-	DISPINFO("[ESD]ESD check begin\n");
+	DISPCHECK("[ESD]ESD check begin\n");
 
 	primary_display_manual_lock();
 	if (primary_get_state() == DISP_SLEPT) {
 		mmprofile_log_ex(mmp_chk, MMPROFILE_FLAG_PULSE, 1, 0);
-		DISPINFO("[ESD]Primary DISP slept. Skip esd check\n");
+		DISPCHECK("[ESD]Primary DISP slept. Skip esd check\n");
 		primary_display_manual_unlock();
 		goto done;
 	}
@@ -456,7 +632,7 @@ int primary_display_esd_check(void)
 
 		mode = get_esd_check_mode();
 		if (mode == GPIO_EINT_MODE) {
-			DISPINFO("[ESD]ESD check eint\n");
+			DISPCHECK("[ESD]ESD check eint\n");
 			mmprofile_log_ex(mmp_te, MMPROFILE_FLAG_PULSE,
 				primary_display_is_video_mode(), mode);
 			mmprofile_log_ex(mmp_chk, MMPROFILE_FLAG_PULSE, 2, 0);
@@ -513,20 +689,12 @@ int primary_display_esd_check(void)
 	mmprofile_log_ex(mmp_rd, MMPROFILE_FLAG_END, 0, ret);
 
 done:
-	DISPINFO("[ESD]ESD check end, ret = %d\n", ret);
+	DISPCHECK("[ESD]ESD check end, ret = %d\n", ret);
 	mmprofile_log_ex(mmp_chk, MMPROFILE_FLAG_END, 0, ret);
 	dprec_logger_done(DPREC_LOGGER_ESD_CHECK, 0, 0);
 	return ret;
 }
 
-#ifdef ODM_WT_EDIT
-//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01,  cancel lcd esd check function at early blank;
-static bool tp_suspend_flag_for_disable_lcd_esd_check;
-void lcd_esd_primary_display_esd_check_enable(bool enable){
-	primary_display_esd_check_enable(enable);
-	tp_suspend_flag_for_disable_lcd_esd_check = (!enable);
-}
-#endif /* ODM_WT_EDIT */
 static int primary_display_check_recovery_worker_kthread(void *data)
 {
 	struct sched_param param = {.sched_priority = 87 };
@@ -571,14 +739,7 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 			ret = primary_display_esd_check();
 			if (!ret) /* success */
 				break;
-			#ifdef ODM_WT_EDIT
-			//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/01,  cancel lcd esd check function at early blank;
-			if (tp_suspend_flag_for_disable_lcd_esd_check) {
-				DISPERR(
-				"[ESD]esd check fail, skip it this time ,as Tp has been suspended\n");
-				break;
-			}
-			#endif /* ODM_WT_EDIT */
+
 			DISPERR(
 				"[ESD]esd check fail, will do esd recovery. try=%d\n",
 				i);
@@ -595,6 +756,7 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 			DISPCHECK("[ESD]esd recovery success\n");
 			recovery_done = 0;
 		}
+		esd_checking = 0;
 		_primary_path_switch_dst_unlock();
 
 		/* 2. other check & recovery */
@@ -604,6 +766,10 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 	}
 	return 0;
 }
+#ifdef ODM_WT_EDIT
+//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
+extern bool flag_lcd_off;
+#endif
 
 /* ESD RECOVERY */
 int primary_display_esd_recovery(void)
@@ -735,6 +901,10 @@ int primary_display_esd_recovery(void)
 
 done:
 	primary_display_manual_unlock();
+#ifdef ODM_WT_EDIT
+	//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
+	flag_lcd_off = false;
+#endif
 	DISPCHECK("[ESD]ESD recovery end\n");
 	mmprofile_log_ex(mmp_r, MMPROFILE_FLAG_END, 0, 0);
 	dprec_logger_done(DPREC_LOGGER_ESD_RECOVERY, 0, 0);

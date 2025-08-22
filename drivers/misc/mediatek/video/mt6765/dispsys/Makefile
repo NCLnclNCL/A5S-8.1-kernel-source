@@ -24,7 +24,7 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/video/include/ \
              -I$(srctree)/drivers/misc/mediatek/gpu/ged/include/ \
              -I$(srctree)/drivers/iommu/ \
              -I$(srctree)/drivers/misc/mediatek/smi/variant/ \
-             -I$(srctree)/drivers/misc/mediatek/dramc/$(MTK_PLATFORM) \
+             -I$(srctree)/drivers/misc/mediatek/dramc/$(MTK_PLATFORM)
 
 
 subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/m4u/$(MTK_PLATFORM) \
@@ -33,8 +33,13 @@ subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/m4u/$(MTK_PLATFORM) \
 subdir-ccflags-y += -I$(srctree)/drivers/staging/android/ion \
 		    -I$(srctree)/drivers/staging/android/ion/mtk
 
-subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/ \
-		    -I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/
+
+ifeq ($(CONFIG_MACH_MT6761),y)
+    subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/mt6765/
+else
+    subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
+endif
 
 subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/mmp/
 
@@ -92,10 +97,6 @@ obj-y += display_recorder.o
 
 ifeq ($(CONFIG_MMPROFILE),y)
 ccflags-y += -DDEFAULT_MMP_ENABLE
-endif
-
-ifeq ($(TARGET_BUILD_VARIANT),user)
-ccflags-y += -D_MTK_USER_
 endif
 
 ifeq ($(MTK_MIRAVISION_SUPPORT), yes)

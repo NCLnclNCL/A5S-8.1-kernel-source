@@ -217,6 +217,8 @@ enum LUT_REG {
 #define SWREG_COLOR_MODE                (DISP_COLOR_SWREG_COLOR_BASE + 0x0009)
 #define SWREG_RSZ_BASE_ADDRESS          (DISP_COLOR_SWREG_COLOR_BASE + 0x000A)
 #define SWREG_MDP_RDMA_BASE_ADDRESS     (DISP_COLOR_SWREG_COLOR_BASE + 0x000B)
+#define SWREG_MDP_AAL_BASE_ADDRESS      (DISP_COLOR_SWREG_COLOR_BASE + 0x000C)
+#define SWREG_MDP_HDR_BASE_ADDRESS      (DISP_COLOR_SWREG_COLOR_BASE + 0x000D)
 
 #define SWREG_TDSHP_TUNING_MODE         (DISP_COLOR_SWREG_TDSHP_BASE + 0x0000)
 #define SWREG_TDSHP_GAIN_MID	        (DISP_COLOR_SWREG_TDSHP_BASE + 0x0001)
@@ -355,7 +357,7 @@ void disp_color_set_window(unsigned int sat_upper, unsigned int sat_lower,
 void disp_color_dbg_log_level(unsigned int debug_level);
 bool disp_color_reg_get(enum DISP_MODULE_ENUM module, unsigned long addr,
 			unsigned int *value);
-extern int disp_color_ioctl(enum DISP_MODULE_ENUM module, int msg,
+extern int disp_color_ioctl(enum DISP_MODULE_ENUM module, unsigned int msg,
 			unsigned long arg, void *cmdq);
 
 #endif

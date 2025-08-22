@@ -18,7 +18,7 @@
 #include "ddp_log.h"
 #include "disp_helper.h"
 #include "disp_drv_platform.h"
-
+#include <ion_priv.h>
 #ifdef CONFIG_MTK_IOMMU_V2
 #include "mach/mt_iommu.h"
 #include <soc/mediatek/smi.h>
@@ -154,9 +154,19 @@ int disp_mva_map_kernel(enum DISP_MODULE_ENUM module, unsigned int mva,
 	unsigned int size, unsigned long *map_va, unsigned int *map_size)
 {
 #ifdef CONFIG_MTK_IOMMU_V2
-	map_va = mtk_iommu_iova_to_va(NULL, mva, size);
+	struct disp_iommu_device *disp_dev = disp_get_iommu_dev();
+
+	if ((disp_dev != NULL) && (disp_dev->iommu_pdev != NULL))
+		mtk_iommu_iova_to_va(&(disp_dev->iommu_pdev->dev),
+					      mva, map_va, size);
+	else
+		pr_info("disp_mva_map_kernel is null\n");
 #elif defined(CONFIG_MTK_M4U)
-	m4u_mva_map_kernel(mva, size, map_va, map_size);
+	if (m4u_mva_map_kernel(mva, size, map_va, map_size) != 0) {
+		DDPERR("error to map kernel va: mva=0x%x, size=%d\n",
+			mva, size);
+		return -1;
+	}
 #endif
 
 	return 0;
@@ -209,11 +219,12 @@ struct ion_handle *disp_ion_alloc(struct ion_client *client,
 }
 
 int disp_ion_get_mva(struct ion_client *client, struct ion_handle *handle,
-	unsigned long *mva, int port)
+		     unsigned long *mva, int port)
 {
 #if defined(MTK_FB_ION_SUPPORT)
 	struct ion_mm_data mm_data;
 	size_t mva_size;
+	ion_phys_addr_t phy_addr = 0;
 
 	memset((void *)&mm_data, 0, sizeof(struct ion_mm_data));
 	mm_data.config_buffer_param.module_id = port;
@@ -228,12 +239,10 @@ int disp_ion_get_mva(struct ion_client *client, struct ion_handle *handle,
 		return -1;
 	}
 
-	ion_phys(client, handle,
-		(ion_phys_addr_t *)mva, &mva_size);
-
-	if (*mva == 0)
-		DDPERR("alloc mmu addr hnd=0x%p,mva=0x%08lx\n",
-			handle, *mva);
+	ion_phys(client, handle, &phy_addr, &mva_size);
+	*mva = (unsigned int)phy_addr;
+	DDPDBG("alloc mmu addr hnd=0x%p,mva=0x%08x\n",
+		   handle, (unsigned int)*mva);
 #endif
 	return 0;
 }
@@ -299,29 +308,35 @@ void disp_ion_destroy(struct ion_client *client)
 #endif
 }
 
-void disp_ion_cache_flush(struct ion_client *client,
-	struct ion_handle *handle, enum ION_CACHE_SYNC_TYPE sync_type)
+void disp_ion_cache_flush(struct ion_client *client, struct ion_handle *handle,
+			  enum ION_CACHE_SYNC_TYPE sync_type)
 {
 #if defined(MTK_FB_ION_SUPPORT)
 	struct ion_sys_data sys_data;
+	void *buffer_va;
 
 	if (!client || !handle)
 		return;
 
 	sys_data.sys_cmd = ION_SYS_CACHE_SYNC;
 	sys_data.cache_sync_param.kernel_handle = handle;
-	sys_data.cache_sync_param.sync_type = sync_type;
+	sys_data.cache_sync_param.sync_type = ION_CACHE_FLUSH_BY_RANGE;
 
-	if (ion_kernel_ioctl(client, ION_CMD_SYSTEM,
-		(unsigned long)&sys_data))
+	buffer_va = ion_map_kernel(client, handle);
+	sys_data.cache_sync_param.va = buffer_va;
+	sys_data.cache_sync_param.size = handle->buffer->size;
+
+	if (ion_kernel_ioctl(client, ION_CMD_SYSTEM, (unsigned long)&sys_data))
 		DDPERR("ion cache flush failed!\n");
+
+	ion_unmap_kernel(client, handle);
 #endif
 }
 
 #ifdef CONFIG_MTK_M4U
 static struct sg_table table;
 
-int disp_allocate_mva(m4u_client_t *client, enum DISP_MODULE_ENUM module,
+int disp_allocate_mva(struct m4u_client_t *client, enum DISP_MODULE_ENUM module,
 	unsigned long va, struct sg_table *sg_table,
 	unsigned int size, unsigned int prot,
 	unsigned int flags, unsigned int *pMva)
@@ -345,7 +360,7 @@ int disp_hal_allocate_framebuffer(phys_addr_t pa_start, phys_addr_t pa_end,
 		&pa_start, &pa_end, *va);
 
 	if (disp_helper_get_option(DISP_OPT_USE_M4U)) {
-		m4u_client_t *client;
+		struct m4u_client_t *client;
 
 		struct sg_table *sg_table = &table;
 

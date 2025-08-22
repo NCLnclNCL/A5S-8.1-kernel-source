@@ -175,6 +175,8 @@ enum DSI_PORCH_TYPE {
 extern const struct LCM_UTIL_FUNCS PM_lcm_utils_dsi0;
 /* defined in mtkfb.c */
 extern bool is_ipoh_bootup;
+extern char mtkfb_lcm_name[];
+
 
 int DSI_enable_checksum(enum DISP_MODULE_ENUM module,
 	struct cmdqRecStruct *cmdq);
@@ -214,6 +216,27 @@ int dsi_enable_irq(enum DISP_MODULE_ENUM module, void *handle,
 	unsigned int enable);
 int ddp_dsi_power_on(enum DISP_MODULE_ENUM module, void *cmdq_handle);
 int dsi_basic_irq_enable(enum DISP_MODULE_ENUM module, void *cmdq);
+extern int mipi_clk_change(int msg, int en);
+extern int mipi_clk_change_by_data_rate(int en, int mipi_data_rate);
+unsigned int _is_power_on_status(enum DISP_MODULE_ENUM module);
+int ddp_dsi_read_lcm_cmdq(enum DISP_MODULE_ENUM module,
+		cmdqBackupSlotHandle *read_Slot,
+		struct cmdqRecStruct *cmdq_trigger_handle,
+		struct ddp_lcm_read_cmd_table *read_table);
+int ddp_dsi_write_lcm_cmdq(enum DISP_MODULE_ENUM module,
+		struct cmdqRecStruct *cmdq,
+		unsigned char cmd, unsigned char count,
+		unsigned char *para_list);
+#ifdef ODM_WT_EDIT
+/*Zhenzhen.Wu@ODM_WT.MM.Display.LCD, 2020/5/14, merge mtk low speed patch*/
+void DSI_dcs_set_lcm_reg_v4(enum DISP_MODULE_ENUM module,
+	bool hs, struct LCM_setting_table_V3 *para_tbl, unsigned int size,
+	unsigned char force_update);
+UINT32 DSI_dcs_read_lcm_reg_v4(enum DISP_MODULE_ENUM module,
+	UINT8 cmd, UINT8 *user_buffer, UINT8 buffer_size, bool sendhs);
+int ddp_dsi_build_cmdq(enum DISP_MODULE_ENUM module,
+	void *cmdq_trigger_handle, enum CMDQ_STATE state);
+#endif
 
 #ifdef __cplusplus
 }

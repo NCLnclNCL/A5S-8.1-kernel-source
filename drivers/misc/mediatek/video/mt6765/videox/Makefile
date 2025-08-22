@@ -20,6 +20,7 @@ obj-$(CONFIG_MTK_FB) += mtkfb_console.o		\
 			mtkfb_fence.o		\
 			fbconfig_kdebug.o	\
 			mtkfb_vsync.o		\
+			disp_cust.o             \
 			debug.o			\
 			primary_display.o	\
 			disp_lowpower.o		\
@@ -32,6 +33,8 @@ obj-$(CONFIG_MTK_FB) += mtkfb_console.o		\
 			disp_dts_gpio.o		\
 			disp_rect.o		\
 			disp_arr.o		\
+			oppo_display_private_api.o \
+			oppo_mm_kevent_fb.o \
 			disp_partial.o		\
 			mtk_ovl.o		\
 			layering_rule.o \
@@ -46,7 +49,7 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/video/include/     \
              -I$(srctree)/drivers/misc/mediatek/video/common/rdma20/ \
              -I$(srctree)/drivers/misc/mediatek/video/common/wdma20/ \
              -I$(srctree)/drivers/misc/mediatek/video/common/layering_rule_base/v1.1/ \
-             -I$(srctree)/drivers/misc/mediatek/video/$(MTK_PLATFORM)/dispsys/   \
+             -I$(srctree)/drivers/misc/mediatek/video/$(MTK_PLATFORM)/dispsys/ \
              -I$(srctree)/drivers/misc/mediatek/sync/      \
              -I$(srctree)/drivers/misc/mediatek/mach/$(MTK_PLATFORM)/include/mach/ \
              -I$(srctree)/drivers/misc/mediatek/base/power/$(MTK_PLATFORM) \
@@ -63,14 +66,24 @@ subdir-ccflags-y += -I$(srctree)/drivers/staging/android/ion \
 subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/m4u/$(MTK_PLATFORM) \
 		    -I$(srctree)/drivers/misc/mediatek/m4u/2.0
 
-subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/ \
-		    -I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/
+
+ifeq ($(CONFIG_MACH_MT6761),y)
+    subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/mt6765/
+else
+    subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/cmdq/v3/$(MTK_PLATFORM)/
+endif
 
 subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/mmp/
 
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/ext_disp \
-	     -I$(srctree)/drivers/misc/mediatek/ext_disp/v2 \
-	     -I$(srctree)/drivers/misc/mediatek/ext_disp/$(MTK_PLATFORM)
+	     -I$(srctree)/drivers/misc/mediatek/ext_disp/v2
+
+ifeq ($(CONFIG_MACH_MT6761),y)
+	ccflags-y += -I$(srctree)/drivers/misc/mediatek/ext_disp/mt6765
+else
+	ccflags-y += -I$(srctree)/drivers/misc/mediatek/ext_disp/$(MTK_PLATFORM)
+endif
 
 ccflags-$(CONFIG_MTK_LCM) += -I$(srctree)/drivers/misc/mediatek/lcm/inc
 

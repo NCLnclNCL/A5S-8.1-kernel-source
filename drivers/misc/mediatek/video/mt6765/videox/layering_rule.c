@@ -85,12 +85,21 @@ int larb_bound_table[HRT_BOUND_NUM][HRT_LEVEL_NUM] = {
 };
 
 int mm_freq_table[HRT_DRAMC_TYPE_NUM][HRT_OPP_LEVEL_NUM] = {
+#if defined(CONFIG_MACH_MT6765)
 	/* HRT_DRAMC_TYPE_LP4_3733 */
 	{457, 312, 228},
 	/* HRT_DRAMC_TYPE_LP4_3200 */
 	{457, 312, 228},
 	/* HRT_DRAMC_TYPE_LP3 */
 	{457, 312, 228},
+#elif defined(CONFIG_MACH_MT6761)
+	/* HRT_DRAMC_TYPE_LP4_3733 */
+	{436, 312, 227},
+	/* HRT_DRAMC_TYPE_LP4_3200 */
+	{436, 312, 227},
+	/* HRT_DRAMC_TYPE_LP3 */
+	{436, 312, 227},
+#endif
 };
 
 /**
@@ -174,14 +183,37 @@ static bool has_rsz_layer(struct disp_layer_info *disp_info, int disp_idx)
 
 static bool same_ratio(struct  layer_config *input,  struct layer_config *tgt)
 {
-	int diff_w = tgt->dst_width * input->src_width / input->dst_width
+	int diff_w = (tgt->dst_width * input->src_width
+					+ (input->src_width - 1))
+						/ input->dst_width
 							- tgt->src_width;
-	int diff_h = tgt->dst_height * input->src_height / input->dst_height
+	int diff_h = (tgt->dst_height * input->src_height
+					+ (input->src_height - 1))
+						/ input->dst_height
 							- tgt->src_height;
 	if (diff_w > 1 || diff_w < -1 || diff_h > 1 || diff_h < -1)
 		return false;
 
 	return true;
+}
+
+#define RATIO_LIMIT  2
+static bool same_ratio_limitation(struct layer_config *tgt, int limitation)
+{
+	int panel_w = 0, panel_h = 0;
+	int diff_w = 0, diff_h = 0;
+
+	panel_w = primary_display_get_width();
+	panel_h = primary_display_get_height();
+	diff_w = tgt->dst_width - tgt->src_width;
+	diff_h = tgt->dst_height - tgt->src_height;
+	if (panel_w <= 0 || panel_h <= 0)
+		return false;
+	if (((100 * diff_w/panel_w < limitation) && (diff_w > 0)) ||
+			((100 * diff_h/panel_h < limitation) && (diff_h > 0)))
+		return true;
+	else
+		return false;
 }
 
 static bool is_RPO(struct disp_layer_info *disp_info, int disp_idx,
@@ -237,6 +269,8 @@ static bool is_RPO(struct disp_layer_info *disp_info, int disp_idx,
 		if ((i == 0 && !*has_dim_layer) || (i == 1 && *has_dim_layer))
 			basic_layer = c;
 		else if (!same_ratio(basic_layer, c))
+			break;
+		else if (same_ratio_limitation(c, RATIO_LIMIT))
 			break;
 
 		rect_make(&src_layer_roi,

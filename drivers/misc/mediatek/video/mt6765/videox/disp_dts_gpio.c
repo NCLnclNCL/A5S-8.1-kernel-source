@@ -29,15 +29,15 @@ static const char *this_state_name[DTS_GPIO_STATE_MAX] = {
 	"lcm_rst_out1_gpio",
 	"lcm1_rst_out0_gpio",
 	"lcm1_rst_out1_gpio",
-#ifdef ODM_WT_EDIT
-//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/08/09, LCD voltage control
+	#ifdef ODM_WT_EDIT
+	/* Wu.Weihong@ODM_WT.MM.Display.Lcd, 2020/3/18, LCD bringup */
 	"lcd_bias_enp0_gpio",
 	"lcd_bias_enp1_gpio",
 	"lcd_bias_enn0_gpio",
 	"lcd_bias_enn1_gpio",
 	"lcd_vddio18_en0_gpio",
 	"lcd_vddio18_en1_gpio"
-#endif
+	#endif
 };
 
 /* pinctrl implementation */
@@ -78,7 +78,7 @@ long disp_dts_gpio_init(struct platform_device *pdev)
 	/* retrieve */
 	pctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(pctrl)) {
-		DISPERR("Cannot find disp pinctrl!");
+		DISPMSG("Cannot find disp pinctrl!");
 		ret = PTR_ERR(pctrl);
 		goto exit;
 	}

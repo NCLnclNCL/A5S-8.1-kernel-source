@@ -28,14 +28,6 @@
 #include "disp_drv_platform.h"
 #include "mtk_dramc.h"
 
-#ifdef VENDOR_EDIT
-/*
- * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
- * Add for MATE mode switch RGB display
- */
-#include "mtk_boot_common.h"
-#endif
-
 #define OVL_REG_BACK_MAX	(40)
 #define OVL_LAYER_OFFSET	(0x20)
 #define OVL_RDMA_DEBUG_OFFSET	(0x4)
@@ -55,7 +47,6 @@ static enum DISP_MODULE_ENUM ovl_index_module[OVL_NUM] = {
 };
 
 unsigned int gOVLBackground = 0xFF000000;
-unsigned int govldimcolor = 0xFF000000;
 
 static unsigned int ovl_bg_w[OVL_NUM];
 static unsigned int ovl_bg_h[OVL_NUM];
@@ -110,9 +101,8 @@ static inline unsigned long ovl_layer_num(enum DISP_MODULE_ENUM module)
 		return 2;
 	default:
 		DDPERR("invalid ovl module=%d\n", module);
-		return -1;
+		return 0;
 	}
-	return 0;
 }
 
 enum CMDQ_EVENT_ENUM ovl_to_cmdq_event_nonsec_end(enum DISP_MODULE_ENUM module)
@@ -128,7 +118,7 @@ enum CMDQ_EVENT_ENUM ovl_to_cmdq_event_nonsec_end(enum DISP_MODULE_ENUM module)
 		DDPERR("invalid ovl module=%d, get cmdq event nonsecure fail\n",
 			module);
 		ASSERT(0);
-		return DISP_MODULE_UNKNOWN;
+		return CMDQ_SYNC_TOKEN_INVALID;
 	}
 	return 0;
 }
@@ -280,14 +270,6 @@ static void _get_roi(enum DISP_MODULE_ENUM module,
 	*bg_h = ovl_bg_h[idx];
 }
 
-#ifdef VENDOR_EDIT
-/*
- * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
- * Add for MATE mode switch RGB display
- */
-static int meta_mode_set_once = 0;
-#endif
-
 int ovl_roi(enum DISP_MODULE_ENUM module, unsigned int bg_w, unsigned int bg_h,
 	    unsigned int bg_color, void *handle)
 {
@@ -301,22 +283,7 @@ int ovl_roi(enum DISP_MODULE_ENUM module, unsigned int bg_w, unsigned int bg_h,
 	DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_SIZE,
 		bg_h << 16 | bg_w);
 
-#ifndef VENDOR_EDIT
-/*
- * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
- * Add for MATE mode switch RGB display
- */
 	DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
-#else
-	if (get_boot_mode() == META_BOOT) {
-		if (meta_mode_set_once == 0) {
-			DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
-			meta_mode_set_once = 1;
-		}
-	} else {
-		DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
-	}
-#endif
 
 	DISP_REG_SET_FIELD(handle, FLD_OVL_LC_SRC_W,
 			ovl_base + DISP_REG_OVL_LC_SRC_SIZE, bg_w);
@@ -450,7 +417,13 @@ int disable_ovl_layers(enum DISP_MODULE_ENUM module, void *handle)
 	unsigned int ovl_idx = ovl_to_index(module);
 
 	/* physical layer control */
-	DISP_REG_SET(handle,
+	DISP_REG_SET_FIELD(handle, SRC_CON_FLD_L0_EN,
+		ovl_base_addr(module) + DISP_REG_OVL_SRC_CON, 0);
+	DISP_REG_SET_FIELD(handle, SRC_CON_FLD_L1_EN,
+		ovl_base_addr(module) + DISP_REG_OVL_SRC_CON, 0);
+	DISP_REG_SET_FIELD(handle, SRC_CON_FLD_L2_EN,
+		ovl_base_addr(module) + DISP_REG_OVL_SRC_CON, 0);
+	DISP_REG_SET_FIELD(handle, SRC_CON_FLD_L3_EN,
 		ovl_base_addr(module) + DISP_REG_OVL_SRC_CON, 0);
 	/* ext layer control */
 	DISP_REG_SET(handle,
@@ -658,14 +631,8 @@ static int ovl_layer_config(enum DISP_MODULE_ENUM module, unsigned int layer,
 
 	DISP_REG_SET(handle, DISP_REG_OVL_L0_CON + layer_offset, value);
 
-	if (cfg->source != OVL_LAYER_SOURCE_RESERVED) {
-		DISP_REG_SET(handle, DISP_REG_OVL_L0_CLR + layer_offset_clr,
-			     0xff000000);
-	} else {
-		DISP_REG_SET(handle, DISP_REG_OVL_L0_CLR + layer_offset_clr,
-			     govldimcolor);
-	}
-
+	DISP_REG_SET(handle, DISP_REG_OVL_L0_CLR + layer_offset_clr,
+		     0xff000000 | cfg->dim_color);
 	DISP_REG_SET(handle,
 		DISP_REG_OVL_L0_SRC_SIZE + layer_offset, dst_h << 16 | dst_w);
 
@@ -683,6 +650,7 @@ static int ovl_layer_config(enum DISP_MODULE_ENUM module, unsigned int layer,
 	if (!is_engine_sec) {
 		DISP_REG_SET(handle, DISP_REG_OVL_L0_ADDR + layer_offset_addr,
 			cfg->real_addr);
+		DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_SECURE, 0x0);
 	} else {
 		unsigned int size;
 		int m4u_port;
@@ -701,6 +669,18 @@ static int ovl_layer_config(enum DISP_MODULE_ENUM module, unsigned int layer,
 				CMDQ_SAM_NMVA_2_MVA, cfg->addr + offset,
 				0, size, m4u_port);
 
+			if (layer == 0)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L0_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 0);
+			else if (layer == 1)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L1_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 0);
+			else if (layer == 2)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L2_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 0);
+			else if (layer == 3)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L3_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 0);
 		} else {
 			/*
 			 * for sec layer, addr variable stores sec handle
@@ -713,6 +693,19 @@ static int ovl_layer_config(enum DISP_MODULE_ENUM module, unsigned int layer,
 					layer_offset_addr),
 				CMDQ_SAM_H_2_MVA, cfg->addr,
 				offset, size, m4u_port);
+
+			if (layer == 0)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L0_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 1);
+			else if (layer == 1)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L1_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 1);
+			else if (layer == 2)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L2_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 1);
+			else if (layer == 3)
+				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L3_EN,
+					ovl_base + DISP_REG_OVL_SECURE, 1);
 		}
 	}
 	DISP_REG_SET(handle, DISP_REG_OVL_L0_SRCKEY + layer_offset, cfg->key);
@@ -961,10 +954,12 @@ static inline int ovl_switch_to_sec(enum DISP_MODULE_ENUM module, void *handle)
 
 	cmdq_engine = ovl_to_cmdq_engine(module);
 	cmdqRecSetSecure(handle, 1);
+
 	/* set engine as sec port, it will to access
 	 * the sec memory EMI_MPU protected
 	 */
-	cmdqRecSecureEnablePortSecurity(handle, (1LL << cmdq_engine));
+	//cmdqRecSecureEnablePortSecurity(handle, (1LL << cmdq_engine));
+
 	/* Enable DAPC to protect the engine register */
 	/* cmdqRecSecureEnableDAPC(handle, (1LL << cmdq_engine)); */
 	if (ovl_is_sec[ovl_idx] == 0) {
@@ -1020,9 +1015,10 @@ int ovl_switch_to_nonsec(enum DISP_MODULE_ENUM module, void *handle)
 		 * if we switch ovl to nonsec BUT its setting is still sec
 		 */
 		disable_ovl_layers(module, nonsec_switch_handle);
+
 		/* in fact, dapc/port_sec will be disabled by cmdq */
-		cmdqRecSecureEnablePortSecurity(
-			nonsec_switch_handle, (1LL << cmdq_engine));
+		//cmdqRecSecureEnablePortSecurity(
+		//	nonsec_switch_handle, (1LL << cmdq_engine));
 
 		if (handle != NULL) {
 			/* Async Flush method */
@@ -1191,8 +1187,10 @@ static int ovl_layer_layout(enum DISP_MODULE_ENUM module,
 	return 1;
 }
 
-static void sBCH_enable(struct OVL_CONFIG_STRUCT *cfg, int *set_reg,
-			struct sbch *data)
+static void sBCH_enable(enum DISP_MODULE_ENUM module,
+			struct OVL_CONFIG_STRUCT *cfg, int *set_reg,
+			struct sbch *data,
+			struct disp_ddp_path_config *pConfig)
 {
 	int update = 0;
 	int cnst_en = 1;
@@ -1214,6 +1212,16 @@ static void sBCH_enable(struct OVL_CONFIG_STRUCT *cfg, int *set_reg,
 	default:
 		trans_en = 0;
 		break;
+	}
+
+	/* RGBX format, can't set sbch_trans_en to 1 */
+	if (cfg->const_bld)
+		trans_en = 0;
+
+	if (cfg->layer_disable_by_partial_update) {
+		update = 0;
+		cnst_en = 0;
+		trans_en = 0;
 	}
 
 	/* set reg*/
@@ -1238,6 +1246,12 @@ static void sBCH_disable(struct sbch *bch_info, int ext_layer_num,
 	int trans_en = 0;
 	int cnst_en = 0;
 
+	if (cfg->layer_disable_by_partial_update) {
+		update = 0;
+		trans_en = 0;
+		cnst_en = 0;
+	}
+
 	data->pre_addr = cfg->real_addr;
 	data->dst_x = cfg->real_dst_x;
 	data->dst_y = cfg->real_dst_y;
@@ -1248,8 +1262,11 @@ static void sBCH_disable(struct sbch *bch_info, int ext_layer_num,
 	data->fmt = cfg->fmt;
 	data->ext_layer_num = ext_layer_num;
 	data->phy_layer = cfg->phy_layer;
+	data->const_bld = cfg->const_bld;
 	data->sbch_en_cnt = 0;
 	data->full_trans_en = 0;
+	data->layer_disable_by_partial_update =
+		cfg->layer_disable_by_partial_update;
 
 	if (cfg->ext_layer == -1) {
 		set_reg[UPDATE] |= update << (cfg->phy_layer * 4);
@@ -1286,7 +1303,8 @@ static unsigned long long full_trans_bw_calc(struct sbch *data,
 				((0x01 << cfg->phy_layer) & dum_val);
 
 			if (data->full_trans_en)
-				DISPMSG("trans layer %d\n", cfg->phy_layer);
+				DISPINFO("layer %d is full transparent\n",
+					cfg->phy_layer);
 		}
 	}
 
@@ -1298,6 +1316,7 @@ static unsigned long long full_trans_bw_calc(struct sbch *data,
 
 	return bw_sum;
 }
+
 static void check_bch_reg(enum DISP_MODULE_ENUM module, int *phy_reg,
 		int *ext_reg, struct disp_ddp_path_config *pConfig)
 {
@@ -1326,8 +1345,8 @@ static void check_bch_reg(enum DISP_MODULE_ENUM module, int *phy_reg,
 	ext_bit_dbg[module] =
 		(ext_reg[UPDATE]|ext_reg[TRANS_EN]|ext_reg[CNST_EN]);
 
-	DDPDBG("set bch%d reg phy:%x -- %x, ext:%x -- %x\n",
-				module,
+	DDPDBG("set bch %s reg phy:%x -- %x, ext:%x -- %x\n",
+				ddp_get_module_name(module),
 				phy_bit_dbg[module], phy_value,
 				ext_bit_dbg[module], ext_value);
 
@@ -1377,23 +1396,27 @@ static int check_ext_update(struct sbch *sbch_data, int ext_num,
 	int j;
 
 	for (j = 0; j < ext_num; j++) {
+		int ext_l = layer + j + 1;
 		struct OVL_CONFIG_STRUCT *ext_cfg =
-					&pConfig->ovl_config[layer + j + 1];
+					&pConfig->ovl_config[ext_l];
 
-		if (sbch_data[layer + j + 1].dst_x != ext_cfg->real_dst_x ||
-			sbch_data[layer + j + 1].dst_y != ext_cfg->real_dst_y ||
-			sbch_data[layer + j + 1].dst_w != ext_cfg->real_dst_w ||
-			sbch_data[layer + j + 1].dst_h != ext_cfg->real_dst_h ||
-			sbch_data[layer + j + 1].height != ext_cfg->src_h ||
-			sbch_data[layer + j + 1].width != ext_cfg->src_w ||
-			sbch_data[layer + j + 1].fmt != ext_cfg->fmt ||
-			sbch_data[layer + j + 1].pre_addr != ext_cfg->real_addr)
+		if (sbch_data[ext_l].dst_x != ext_cfg->real_dst_x ||
+			sbch_data[ext_l].dst_y != ext_cfg->real_dst_y ||
+			sbch_data[ext_l].dst_w != ext_cfg->real_dst_w ||
+			sbch_data[ext_l].dst_h != ext_cfg->real_dst_h ||
+			sbch_data[ext_l].height != ext_cfg->src_h ||
+			sbch_data[ext_l].width != ext_cfg->src_w ||
+			sbch_data[ext_l].fmt != ext_cfg->fmt ||
+			sbch_data[ext_l].pre_addr != ext_cfg->real_addr ||
+			sbch_data[ext_l].layer_disable_by_partial_update
+			!= ext_cfg->layer_disable_by_partial_update)
 			return 1;
 	}
 	return 0;
 }
 
-static void ext_layer_bch_en(int *ext_reg, int ext_num,
+static void ext_layer_bch_en(enum DISP_MODULE_ENUM module,
+		int *ext_reg, int ext_num,
 		struct disp_ddp_path_config *pConfig, int *layer,
 		struct sbch *data)
 {
@@ -1404,7 +1427,8 @@ static void ext_layer_bch_en(int *ext_reg, int ext_num,
 					&pConfig->ovl_config[*layer + 1];
 
 		(*layer)++;
-		sBCH_enable(ext_cfg, ext_reg, &data[*layer + 1]);
+		sBCH_enable(module, ext_cfg, ext_reg,
+			&data[*layer + 1], pConfig);
 	}
 }
 
@@ -1435,10 +1459,11 @@ static void ext_layer_compare(struct sbch *sbch_data, int *phy_reg,
 		ext_update = check_ext_update(sbch_data, ext_num, (*layer),
 							pConfig);
 		if (!ext_update) {
-			sBCH_enable(ovl_cfg, phy_reg, &sbch_data[*layer]);
+			sBCH_enable(module, ovl_cfg, phy_reg,
+				&sbch_data[*layer], pConfig);
 
 			/* enable ext layer BCH on this phy */
-			ext_layer_bch_en(ext_reg, ext_num, pConfig,
+			ext_layer_bch_en(module, ext_reg, ext_num, pConfig,
 						layer, &sbch_data[*layer]);
 			return;
 		}
@@ -1464,7 +1489,8 @@ static void layer_no_update(struct sbch *sbch_data, int *phy_reg,
 
 	/*  the phy layer don't have ext layer, it can use BCH */
 	if (!ext_num && !sbch_data[*layer].ext_layer_num) {
-		sBCH_enable(ovl_cfg, phy_reg, &sbch_data[*layer]);
+		sBCH_enable(module, ovl_cfg, phy_reg,
+			&sbch_data[*layer], pConfig);
 		*bw_sum += full_trans_bw_calc(&sbch_data[*layer],
 					module, ovl_cfg, pConfig);
 	} else if (!ext_num && sbch_data[*layer].ext_layer_num) {
@@ -1523,7 +1549,25 @@ static unsigned long long sbch_calc(enum DISP_MODULE_ENUM module,
 			i == primary_display_get_option("ASSERT_LAYER"))
 			continue;
 
-		/* the layer address,height,fmt all don't change,
+		DDPDBG(
+			"sbch pre L%d, %lx, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+			i, sbch_data[i].pre_addr,
+			sbch_data[i].dst_x, sbch_data[i].dst_y,
+			sbch_data[i].dst_w, sbch_data[i].dst_h,
+			sbch_data[i].height, sbch_data[i].width,
+			sbch_data[i].fmt, sbch_data[i].phy_layer,
+			sbch_data[i].const_bld);
+
+		DDPDBG(
+			"sbch now L%d, %lx, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+			i, ovl_cfg->real_addr,
+			ovl_cfg->real_dst_x, ovl_cfg->real_dst_y,
+			ovl_cfg->real_dst_w, ovl_cfg->real_dst_h,
+			ovl_cfg->src_h, ovl_cfg->src_w,
+			ovl_cfg->fmt, ovl_cfg->phy_layer,
+			ovl_cfg->const_bld);
+
+		/* the layer address,height,fmt,const bld all don't change,
 		 * maybe use BCH.
 		 */
 		if (sbch_data[i].pre_addr == ovl_cfg->real_addr &&
@@ -1534,7 +1578,10 @@ static unsigned long long sbch_calc(enum DISP_MODULE_ENUM module,
 			sbch_data[i].height == ovl_cfg->src_h &&
 			sbch_data[i].width == ovl_cfg->src_w &&
 			sbch_data[i].fmt == ovl_cfg->fmt &&
-			sbch_data[i].phy_layer == ovl_cfg->phy_layer) {
+			sbch_data[i].phy_layer == ovl_cfg->phy_layer &&
+			sbch_data[i].layer_disable_by_partial_update ==
+			ovl_cfg->layer_disable_by_partial_update &&
+			sbch_data[i].const_bld == ovl_cfg->const_bld) {
 			if (ovl_cfg->ext_layer == -1)
 				layer_no_update(sbch_data, phy_bit, ext_bit,
 					pConfig, ovl_cfg, &i,
@@ -1582,15 +1629,6 @@ static int ovl_config_l(enum DISP_MODULE_ENUM module,
 	unsigned int bb = 0;
 #endif
 
-#ifdef VENDOR_EDIT
-/*
- * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
- * Add for MATE mode switch RGB display
- */
-	if (get_boot_mode() == META_BOOT) {
-		gOVLBackground = 0xFF00FF00;
-	}
-#endif
 	if (pConfig->dst_dirty)
 		ovl_roi(module, pConfig->dst_w, pConfig->dst_h, gOVLBackground,
 			handle);
@@ -1653,9 +1691,12 @@ static int ovl_config_l(enum DISP_MODULE_ENUM module,
 					pConfig->rsz_src_roi, has_sec_layer,
 					ovl_cfg, &pConfig->ovl_partial_roi,
 					&layer_partial_roi, handle);
+				ovl_cfg->layer_disable_by_partial_update = 0;
 			} else {
 				/* this layer will not be displayed */
 				enable = 0;
+				/*update layer_en sbch will skip this layer*/
+				ovl_cfg->layer_disable_by_partial_update = 1;
 			}
 		} else {
 			print_layer_config_args(module, ovl_cfg, NULL);
@@ -1675,8 +1716,8 @@ static int ovl_config_l(enum DISP_MODULE_ENUM module,
 		}
 
 		Bpp = ufmt_get_Bpp(ovl_cfg->fmt);
-		tmp_bw = (unsigned long long)ovl_cfg->dst_h *
-			ovl_cfg->dst_w * fps * Bpp;
+		tmp_bw = (unsigned long long)ovl_cfg->src_h *
+			ovl_cfg->src_w * fps * Bpp;
 		do_div(tmp_bw, 1000);
 		tmp_bw *= 1250;
 		do_div(tmp_bw, fps * 1000);
@@ -2655,6 +2696,8 @@ int ovl_partial_update(enum DISP_MODULE_ENUM module, unsigned int bg_w,
 	DDPDBG("ovl%d partial update\n", module);
 	DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_SIZE,
 		bg_h << 16 | bg_w);
+
+	_store_roi(module, bg_w, bg_h);
 
 	return 0;
 }

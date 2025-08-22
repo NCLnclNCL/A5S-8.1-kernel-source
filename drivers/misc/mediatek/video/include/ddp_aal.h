@@ -14,24 +14,11 @@
 #ifndef __DDP_AAL_H__
 #define __DDP_AAL_H__
 
-#if defined(CONFIG_MACH_MT6799)
-#define AAL_HAS_DRE3            (1)
-#endif
-
-#if defined(CONFIG_MACH_MT6799) || defined(CONFIG_MACH_MT6763) || \
-	defined(CONFIG_MACH_MT6771) || defined(CONFIG_MACH_MT6775) || \
-	defined(CONFIG_MACH_MT6765)
-#define AAL_SUPPORT_KERNEL_API            (1)
-#endif
-
 #define AAL_HIST_BIN            33	/* [0..32] */
 #define AAL_DRE_POINT_NUM       29
 
-#define AAL_DRE3_HIST_NUM       17
-#define AAL_DRE3_POINT_NUM      17
-#define AAL_DRE3_LAST_POINT     (AAL_DRE3_POINT_NUM-1)
-#define AAL_DRE_BLK_NUM         16
-#define AAL_BLK_MAX_ALLOWED_NUM         128
+#define AAL_DRE30_GAIN_REGISTER_NUM		(544)
+#define AAL_DRE30_HIST_REGISTER_NUM		(768)
 
 #define AAL_SERVICE_FORCE_UPDATE 0x1
 
@@ -40,7 +27,7 @@
 /* typedef unsigned long long aal_u32_ptr_t; */
 #define aal_u32_handle_t unsigned long long
 
-#define AAL_U32_PTR(x) ((void *)(unsigned long)x)
+#define AAL_U32_PTR(x) ((unsigned int *)(unsigned long)x)
 
 enum disp_aal_id_t {
 	DISP_AAL0 = 0,
@@ -77,7 +64,6 @@ struct DISP_AAL_INITREG {
 	int dre_map_bypass;
 	/* ESS */
 	int cabc_gainlmt[33];
-#ifdef AAL_HAS_DRE3
 	/* DRE 3.0 Reg. */
 	int dre_s_lower;
 	int dre_s_upper;
@@ -98,7 +84,6 @@ struct DISP_AAL_INITREG {
 	int dre_blk_area_min;
 	int hist_bin_type;
 	int dre_flat_length_slope;
-#endif
 };
 
 struct DISP_DRE30_INIT {
@@ -112,12 +97,7 @@ struct DISP_AAL_DISPLAY_SIZE {
 };
 
 struct DISP_DRE30_HIST {
-	int dre_max_hist[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM][AAL_DRE3_HIST_NUM];
-	int dre_rgb_max_sum[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM];
-	int dre_large_diff_count_set[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM];
-	int dre_max_diff_set[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM];
-	int dre_chroma_hist[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM];
-	int dre_flat_line_count_set[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM];
+	unsigned int dre_hist[AAL_DRE30_HIST_REGISTER_NUM];
 	int dre_blk_x_num;
 	int dre_blk_y_num;
 };
@@ -128,15 +108,12 @@ struct DISP_AAL_HIST {
 	int colorHist;
 	unsigned int maxHist[AAL_HIST_BIN];
 	int requestPartial;
-#ifdef AAL_HAS_DRE3
 	aal_u32_handle_t dre30_hist;
-#endif
-#ifdef AAL_SUPPORT_KERNEL_API
 	unsigned int panel_type;
 	int essStrengthIndex;
 	int ess_enable;
 	int dre_enable;
-#endif
+	unsigned int yHist[AAL_HIST_BIN];
 };
 
 struct DISP_AAL_HIST_MODULE {
@@ -151,7 +128,7 @@ enum DISP_AAL_REFRESH_LATENCY {
 };
 
 struct DISP_DRE30_PARAM {
-	int dre3_gain[AAL_DRE_BLK_NUM][AAL_DRE_BLK_NUM][AAL_DRE3_POINT_NUM];
+	unsigned int dre30_gain[AAL_DRE30_GAIN_REGISTER_NUM];
 };
 
 struct DISP_AAL_PARAM {
@@ -161,9 +138,7 @@ struct DISP_AAL_PARAM {
 	int FinalBacklight;	/* 10-bit ; [0,1023] */
 	int allowPartial;
 	int refreshLatency;	/* DISP_AAL_REFRESH_LATENCY */
-#ifdef AAL_HAS_DRE3
 	aal_u32_handle_t dre30_gain;
-#endif
 };
 
 void disp_aal_on_end_of_frame(void);

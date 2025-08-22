@@ -23,6 +23,10 @@
 #ifdef MTK_FB_MMDVFS_SUPPORT
 #include <linux/pm_qos.h>
 #endif
+#ifdef ODM_WT_EDIT
+//Wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/15, Add ffl function
+#include <linux/leds.h>
+#endif
 
 
 #ifdef MTK_FB_MMDVFS_SUPPORT
@@ -338,6 +342,11 @@ int primary_display_get_corner_pattern_height(void);
 void *primary_display_get_corner_pattern_top_va(void);
 void *primary_display_get_corner_pattern_bottom_va(void);
 #endif
+#ifdef ODM_WT_EDIT
+//Zhenzhen.Wu@ODM_WT.MM.Display.Lcd, 2019/12/7, add for multi-lcms
+int _ioctl_get_lcm_module_info(unsigned long arg);
+#endif
+
 int primary_display_get_pages(void);
 int primary_display_set_overlay_layer(struct primary_disp_input_config *input);
 int primary_display_is_alive(void);
@@ -424,6 +433,12 @@ int do_primary_display_switch_mode(int sess_mode, unsigned int session,
 int primary_display_check_test(void);
 void _primary_path_switch_dst_lock(void);
 void _primary_path_switch_dst_unlock(void);
+#ifdef ODM_WT_EDIT
+//Wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/15, Add ffl function
+void ffl_set_init(void);
+void ffl_set_enable(unsigned int enable);
+int primary_display_setbacklight_nolock(unsigned int level);
+#endif
 
 /* AOD */
 enum lcm_power_state primary_display_set_power_state(

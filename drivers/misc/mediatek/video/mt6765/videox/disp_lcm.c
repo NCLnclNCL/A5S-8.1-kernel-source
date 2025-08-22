@@ -25,16 +25,16 @@
 #include <linux/of.h>
 #endif
 
-#ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.FUNCTION.2018/10/30,Add for TP black screen test
-int g_gesture = 0;
-#endif
-
 /* This macro and arrya is designed for multiple LCM support */
 /* for multiple LCM, we should assign I/F Port id in lcm driver, */
 /* such as DPI0, DSI0/1 */
 /* static struct disp_lcm_handle _disp_lcm_driver[MAX_LCM_NUMBER]; */
-
+#ifdef ODM_WT_EDIT
+ //Hao.Liang@ODM_WT.MM.Display.Lcd, 2020/06/17, LCD backlight need delay serial after resume lp11
+ #include <linux/delay.h>
+//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
+bool flag_lcd_off = false;
+#endif
 int _lcm_count(void)
 {
 	return lcm_count;
@@ -1034,21 +1034,25 @@ void load_lcm_resources_from_DT(struct LCM_DRIVER *lcm_drv)
 #endif
 
 #ifdef ODM_WT_EDIT
-//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/10/1, add LCD HW information
-#include <linux/hardware_info.h>
-extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH];
-extern void devinfo_info_set(char *name, char *version, char *manufacture);
+char Lcm_name[256];
+#endif
+int tp_gesture = 0;
+EXPORT_SYMBOL(tp_gesture);
+char Lcm_name1[256];
 
+#include <linux/hardware_info.h>
+extern char Lcm_name2[HARDWARE_MAX_ITEM_LONGTH];
+extern void devinfo_info_set(char *name, char *version, char *manufacture);
 static char nt36525b_panel_xxx_mark;
 static inline char getLcmPanel_ID(void){
-	DISPCHECK("nt36525b_panel kernel is %d\n",nt36525b_panel_xxx_mark);
+	DISPCHECK("lcm nt36525b_panel kernel is %d\n",nt36525b_panel_xxx_mark);
 	return nt36525b_panel_xxx_mark;
 }
 
 static inline void setLcmPanel_ID(char value){
 		nt36525b_panel_xxx_mark = value;
 }
-#endif
+
 struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 	enum LCM_INTERFACE_ID lcm_id, int is_lcm_inited)
 {
@@ -1063,77 +1067,25 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 	struct LCM_DRIVER *lcm_drv = NULL;
 	struct LCM_PARAMS *lcm_param = NULL;
 	struct disp_lcm_handle *plcm = NULL;
-#ifdef ODM_WT_EDIT
-//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/10/26, add proc devinfo which used for shooting troubles related with LCD
-	char *temp = NULL;
-	char *tddic_temp = NULL;
-	char *lcm_panel_temp = NULL;
-#endif /*ODM_WT_EDIT*/
+
 	DISPFUNC();
 	DISPCHECK("plcm_name=%s is_lcm_inited %d\n", plcm_name, is_lcm_inited);
 
-	#ifdef ODM_WT_EDIT
-	//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/10/1, add LCD HW information
-	if (is_lcm_inited == 1){
-		strncpy(Lcm_name, plcm_name, strlen(plcm_name) + 1);
+#ifdef ODM_WT_EDIT
+	if(is_lcm_inited ==1){
+		strncpy(Lcm_name1,plcm_name,strlen(plcm_name)+1);
+		strncpy(Lcm_name2,plcm_name,strlen(plcm_name)+1);
 	}
-	tddic_temp = strstr(plcm_name ,"ilt9881h");
-	if (tddic_temp != NULL){
-		temp = tddic_temp + strlen("ilt9881h");
-		if (!strncmp(temp ,"_txd_hdp_dsi_vdo_lcm_drv", strlen("_txd_hdp_dsi_vdo_lcm_drv"))){
-			lcm_panel_temp = "TXD_ILI";
-		} else if (!strncmp(temp ,"_hlt_hdp_dsi_vdo_lcm_drv", strlen("_hlt_hdp_dsi_vdo_lcm_drv"))){
-			lcm_panel_temp = "HLT_ILI";
-		} else {
-			lcm_panel_temp = "INX_ILI";
-		}
-		tddic_temp = "ili9881h";
+	pr_err(" lcm name IS %s\n",Lcm_name1);
+	if((!strcmp(plcm_name, "nt36525b_hlt_psc_hdp_dsi_vdo_lcm"))||(!strcmp(plcm_name,"nt36525b_hlt_psc_boe_hdp_dsi_vdo_lcm"))){
+		pr_err("HLT lcm setlcm id");
+		setLcmPanel_ID(1);
+	}else{
+
 		setLcmPanel_ID(0);
-	} else {
-			tddic_temp = strstr(plcm_name ,"hx83112a");
-			if (tddic_temp != NULL){
-				temp = tddic_temp + strlen("hx83112a");
-				if (!strncmp(temp ,"_lead_hdp_dsi_vdo_lcm_drv" ,strlen("_lead_hdp_dsi_vdo_lcm_drv"))){
-					lcm_panel_temp = "LEAD_HX";
-				} else {
-					lcm_panel_temp = "NULL_HX";
-				}
-				tddic_temp = "hx83112a";
-			} else {
-			 	tddic_temp = strstr(plcm_name ,"ili9881tfh");
-				if (tddic_temp != NULL){
-						temp = tddic_temp + strlen("ili9881tfh");
-						if (!strncmp(temp ,"_txd_hdp_dsi_vdo_lcm_drv" ,strlen("_txd_hdp_dsi_vdo_lcm_drv"))){
-							lcm_panel_temp = "TXD_ILI_TF";
-						} else if (!strncmp(temp ,"_lide_hdp_dsi_vdo_lcm_drv" ,strlen("_lide_hdp_dsi_vdo_lcm_drv"))){
-							lcm_panel_temp = "LIDE_ILI_TF";
-						}
-						tddic_temp = "ili9881tfh";
-						setLcmPanel_ID(0);
-				} else {
-					tddic_temp = strstr(plcm_name ,"nt36525b");
-					if (tddic_temp != NULL){
-						temp = tddic_temp + strlen("nt36525b");
-						if (!strncmp(temp ,"_huaxian_hdp_dsi_vdo_lcm_drv" ,strlen("_huaxian_hdp_dsi_vdo_lcm_drv"))){
-							lcm_panel_temp = "HUAXIAN_NT";
-						} else {
-							lcm_panel_temp = "SKYW_NT";
-						}
-						tddic_temp = "nt36525b";
-						setLcmPanel_ID(1);
-					}else if (strstr(plcm_name ,"Simulator")){
-						lcm_panel_temp = "Simulator";
-						tddic_temp = "virtual";
-						setLcmPanel_ID(0);
-					} else {
-						lcm_panel_temp = "NOT_FOUND";
-						tddic_temp = "NOT_FOUND";
-					}
-				}
-			}
 	}
-	devinfo_info_set("lcd" ,tddic_temp ,lcm_panel_temp);
-	#endif
+
+#endif
 #if defined(MTK_LCM_DEVICE_TREE_SUPPORT)
 	if (check_lcm_node_from_DT() == 0) {
 		lcm_drv = &lcm_common_drv;
@@ -1506,13 +1458,13 @@ int disp_lcm_suspend(struct disp_lcm_handle *plcm)
 			DISPERR("FATAL ERROR, lcm_drv->suspend is null\n");
 			return -1;
 		}
-#ifdef ODM_WT_EDIT
-//Bin.Su@ODM_WT.BSP.TP.FUNCTION.2018/10/30,Add for TP black screen test
-		if (lcm_drv->suspend_power&&(!g_gesture))
-#endif
+
+		if (lcm_drv->suspend_power)
 			lcm_drv->suspend_power();
-
-
+#ifdef ODM_WT_EDIT
+		//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
+		flag_lcd_off = true;
+#endif
 		return 0;
 	}
 	DISPERR("lcm_drv is null\n");
@@ -1520,7 +1472,7 @@ int disp_lcm_suspend(struct disp_lcm_handle *plcm)
 }
 
 #ifdef ODM_WT_EDIT
-//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/24, NT36525b related panel request extra power sequence before MIPI entering LP11 from LP-00
+//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/10/9, NT36525b related panel request extra power sequence before MIPI entering LP11 from LP-00
 int primary_disp_lcm_resume_power(struct disp_lcm_handle *plcm)
 {
 	struct LCM_DRIVER *lcm_drv = NULL;
@@ -1542,7 +1494,7 @@ int disp_lcm_resume(struct disp_lcm_handle *plcm)
 	if (_is_lcm_inited(plcm)) {
 		lcm_drv = plcm->drv;
 		#ifdef ODM_WT_EDIT
-		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/12/24, NT36525b related panel request extra power sequence before MIPI entering LP11 from LP-00
+		//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/10/9, NT36525b related panel request extra power sequence before MIPI entering LP11 from LP-00
 		if ( (!getLcmPanel_ID()) && (lcm_drv->resume_power))
 			lcm_drv->resume_power();
 		#else
@@ -1556,6 +1508,10 @@ int disp_lcm_resume(struct disp_lcm_handle *plcm)
 			DISPERR("FATAL ERROR, lcm_drv->resume is null\n");
 			return -1;
 		}
+#ifdef ODM_WT_EDIT
+		//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
+		flag_lcd_off = false;
+#endif
 
 		return 0;
 	}
@@ -1614,7 +1570,8 @@ int disp_lcm_adjust_fps(void *cmdq, struct disp_lcm_handle *plcm, int fps)
 }
 
 #ifdef ODM_WT_EDIT
-	//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/11/03, LCD backlight value remapping into register of tddic
+
+	//wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/10, LCD backlight value remapping into register of tddic
 	/* This maps android backlight level 0 to 2047 into
 	 * driver backlight level 0 to bl_max with rounding
 	 */
@@ -1661,15 +1618,16 @@ static int backlight_remapping_into_tddic_reg(struct disp_lcm_handle *plcm, int 
 		return 0;
 	}
 }
-#endif /* ODM_WT_EDIT */
-
+#endif
 int disp_lcm_set_backlight(struct disp_lcm_handle *plcm,
 	void *handle, int level)
 {
-	#ifdef ODM_WT_EDIT
-	//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/11/03, LCD backlight value remapping into register of tddic
+#ifdef ODM_WT_EDIT
+	//wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/10, LCD backlight value remapping into register of tddic
 	int level_temp;
-	#endif /* ODM_WT_EDIT */
+	//Hao.Liang@ODM_WT.MM.Display.Lcd, 2020/06/17, LCD backlight need delay serial after resume lp11
+	 static unsigned int ls_level;
+#endif /* ODM_WT_EDIT */
 	struct LCM_DRIVER *lcm_drv = NULL;
 
 	DISPFUNC();
@@ -1680,20 +1638,28 @@ int disp_lcm_set_backlight(struct disp_lcm_handle *plcm,
 
 	lcm_drv = plcm->drv;
 	if (lcm_drv->set_backlight_cmdq) {
-		#ifdef ODM_WT_EDIT
-		//Benzhong.Hou@ODM_WT.MM.Display.Lcd, 2018/11/03, LCD backlight value remapping into register of tddic
+#ifdef ODM_WT_EDIT
+	//wu.weihong@ODM_WT.MM.Display.Lcd, 2020/04/10, LCD backlight value remapping into register of tddic
+		//pr_debug("check disp_lcm_set_backlight level ==%d in disp_lcm \n",level);
+		if(ls_level == 0){
+			//Hao.Liang@ODM_WT.MM.Display.Lcd, 2020/06/17, LCD backlight need delay serial after resume lp11
+			    msleep(31);
+			    pr_debug("when last backlight is 0 sleep 31ms for d0p between leda times\n");
+		}
 		level_temp = backlight_remapping_into_tddic_reg(plcm, level);
 		lcm_drv->set_backlight_cmdq(handle, level_temp);
-		#else
+#else
 		lcm_drv->set_backlight_cmdq(handle, level);
-		#endif /* ODM_WT_EDIT */
+#endif
 	} else {
 		DISPERR("FATAL ERROR, lcm_drv->set_backlight is null\n");
 		return -1;
 	}
+	ls_level=level;
 
 	return 0;
 }
+
 
 int disp_lcm_ioctl(struct disp_lcm_handle *plcm, enum LCM_IOCTL ioctl,
 	unsigned int arg)
@@ -1823,32 +1789,30 @@ int disp_lcm_set_lcm_cmd(struct disp_lcm_handle *plcm, void *cmdq_handle,
 	return -1;
 }
 
-#ifdef VENDOR_EDIT
-/*
-* Ling.Guo@PSW.MM.Display.LCD.Stability, 2018/11/12,
-* add display feature interface
-*/
+#ifdef ODM_WT_EDIT
+//Hao.Liang@ODM_WT.MM.Display.Lcd, 2019/12/9, Add cabc function
 int disp_lcm_oppo_set_lcm_cabc_cmd(struct disp_lcm_handle *plcm, void *handle, unsigned int level)
 {
 	struct LCM_DRIVER *lcm_drv = NULL;
 
 	DISPFUNC();
+	pr_err("check disp_lcm_oppo_set_lcm_cabc_cmd in disp_lcm_c\n");
 	if (_is_lcm_inited(plcm)) {
 		lcm_drv = plcm->drv;
 		if (lcm_drv->set_cabc_mode_cmdq) {
 			lcm_drv->set_cabc_mode_cmdq(handle, level);
 		} else {
-			DISPERR("FATAL ERROR, lcm_drv->oppo_set_cabc_mode_cmdq is null\n");
+			pr_err("FATAL ERROR, lcm_drv->oppo_set_cabc_mode_cmdq is null\n");
 			return -1;
 		}
 
 		return 0;
 	}
 
-	DISPERR("lcm_drv is null\n");
+	pr_err("lcm_drv is null\n");
 	return -1;
 }
-#endif /* VENDOR_EDIT */
+#endif
 
 int disp_lcm_is_partial_support(struct disp_lcm_handle *plcm)
 {
@@ -1880,3 +1844,50 @@ int disp_lcm_validate_roi(struct disp_lcm_handle *plcm,
 	DISPERR("validate roi lcm_drv is null\n");
 	return -1;
 }
+
+#ifdef ODM_WT_EDIT
+//Hao.liang@ODM_WT.MM.Display.Lcd, 2019/10/11 Add cabc read & write interface,
+int disp_lcm_set_cabc(struct disp_lcm_handle *plcm,
+	void *handle, int enable)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->set_cabc_cmdq) {
+		lcm_drv->set_cabc_cmdq(handle, enable);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->set_cabc_cmdq is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int disp_lcm_get_cabc(struct disp_lcm_handle *plcm, int *status)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->get_cabc_status) {
+		lcm_drv->get_cabc_status(status);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->get_cabc_status is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+#endif
+
