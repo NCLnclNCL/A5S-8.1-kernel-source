@@ -74,6 +74,10 @@
 
 #include "mtk_charger_intf.h"
 #include "mtk_charger_init.h"
+#ifdef CONFIG_LIMIT_CHARGER
+#include <mtk_battery_internal.h>
+//#include <mtk_gauge_class.h>
+#endif
 #ifdef ODM_WT_EDIT
 /*  Maosheng.Zhang@ODM_WT.BSP.Charger.Basic.1372106, 20180808,Add for factory mode test */
 
