@@ -2081,10 +2081,23 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 
 	return disable_charging;
 }
+signed int battery_get_uisoc(void)
+{
+	//int boot_mode = get_boot_mode();
+
+//	if ((boot_mode == META_BOOT) ||
+	//	(boot_mode == ADVMETA_BOOT) ||
+//		(boot_mode == FACTORY_BOOT) ||
+	//	(boot_mode == ATE_FACTORY_BOOT))
+	//	return 75;
+
+	return get_mtk_battery()->ui_soc;
+}
 static void chg_work()
 {
 	bool disable_pwrsrc = false;
 	int disable_charging = 0;
+	int capacity = battery_get_uisoc();
 //	int rc;
 //	union power_supply_propval pval = {0,};
 //struct charger_manager *pinfo = arg;
@@ -2100,8 +2113,8 @@ static void chg_work()
 	}
 	else
 	{
-	disable_charging = is_charging_disabled( get_mtk_battery()->ui_soc);
-	if (disable_charging && pval.intval > pinfo->charge_stop_level)
+	disable_charging = is_charging_disabled(capacity);
+	if (disable_charging && capacity > pinfo->charge_stop_level)
 		disable_pwrsrc = true;
 	else
 		disable_pwrsrc = false;
@@ -2113,8 +2126,8 @@ static void chg_work()
 	//}
 //pinfo->disable_charger = disable_pwrsrc;
 	}
-	out:
-;
+//	out:
+//;
 }
 #endif
 static int charger_routine_thread(void *arg)
