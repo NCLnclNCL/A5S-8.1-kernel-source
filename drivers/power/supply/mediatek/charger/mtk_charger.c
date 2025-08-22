@@ -2154,14 +2154,14 @@ static int charger_routine_thread(void *arg)
 
 		if (info->charger_thread_polling == true)
 			mtk_charger_start_timer(info);
-#ifdef CONFIG_LIMIT_CHARGER
-		chg_work(arg);
-#endif
+
 		charger_update_data(info);
 		check_battery_exist(info);
 		charger_check_status(info);
 		kpoc_power_off_check(info);
-
+#ifdef CONFIG_LIMIT_CHARGER
+		chg_work();
+#endif
 		if (is_disable_charger() == false) {
 			if (is_charger_on == true) {
 				if (info->do_algorithm)
