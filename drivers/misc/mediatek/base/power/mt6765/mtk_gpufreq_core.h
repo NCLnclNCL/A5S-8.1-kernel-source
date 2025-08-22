@@ -45,9 +45,9 @@
 #define SEG3_GPU_DVFS_FREQ1			(500000)	/* KHz */
 #define SEG3_GPU_DVFS_FREQ2			(400000)	/* KHz */
 
-#define SEG3_GPU_DVFS_VOLT0			(76500)		/* mV x 100 */
-#define SEG3_GPU_DVFS_VOLT1			(66500)		/* mV x 100 */
-#define SEG3_GPU_DVFS_VOLT2			(61500)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT0			(75000)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT1			(65000)		/* mV x 100 */
+#define SEG3_GPU_DVFS_VOLT2			(60000)		/* mV x 100 */
 
 #define SEG3_GPU_DVFS_VSRAM0			(87500)		/* mV x 100 */
 #define SEG3_GPU_DVFS_VSRAM1			(87500)		/* mV x 100 */
@@ -67,6 +67,21 @@
 #define SEG4_GPU_DVFS_VSRAM0			(87500)		/* mV x 100 */
 #define SEG4_GPU_DVFS_VSRAM1			(87500)		/* mV x 100 */
 #define SEG4_GPU_DVFS_VSRAM2			(87500)		/* mV x 100 */
+
+/**************************************************
+ * MT6762D segment_5 : GPU DVFS OPP table Setting
+ **************************************************/
+#define SEG5_GPU_DVFS_FREQ0			(600000)/* KHz */
+#define SEG5_GPU_DVFS_FREQ1			(500000)/* KHz */
+#define SEG5_GPU_DVFS_FREQ2			(400000)/* KHz */
+
+#define SEG5_GPU_DVFS_VOLT0			(80000)	/* mV x 100 */
+#define SEG5_GPU_DVFS_VOLT1			(70000)	/* mV x 100 */
+#define SEG5_GPU_DVFS_VOLT2			(65000)	/* mV x 100 */
+
+#define SEG5_GPU_DVFS_VSRAM0			(87500)	/* mV x 100 */
+#define SEG5_GPU_DVFS_VSRAM1			(87500)	/* mV x 100 */
+#define SEG5_GPU_DVFS_VSRAM2			(87500)	/* mV x 100 */
 
 /**************************************************
  * PMIC Setting
@@ -138,7 +153,6 @@
 #define MT_GPUFREQ_BATT_PERCENT_PROTECT /* todo: disable it */
 #define MT_GPUFREQ_BATT_OC_PROTECT
 #define MT_GPUFREQ_DYNAMIC_POWER_TABLE_UPDATE
-#define FHCTL_READY
 
 /**************************************************
  * Battery Over Current Protect
@@ -217,6 +231,7 @@ enum g_segment_id_enum {
 	MT6762_SEGMENT,
 	MT6765_SEGMENT,
 	MT6765T_SEGMENT,
+	MT6762D_SEGMENT,
 };
 enum g_post_divider_power_enum  {
 	POST_DIV2 = 1,
@@ -234,12 +249,23 @@ enum g_limited_idx_enum {
 	IDX_BATT_PERCENT_LIMITED,
 	IDX_BATT_OC_LIMITED,
 	IDX_PBM_LIMITED,
+#ifdef VENDOR_EDIT
+	IDX_SCENE_LIMITED,
+#endif
 	NUMBER_OF_LIMITED_IDX,
 };
 enum g_volt_switch_enum {
 	VOLT_FALLING = 0,
 	VOLT_RISING,
 };
+
+#ifdef VENDOR_EDIT
+//cuixiaogang@Swdp.shanghai, 2017/12/08, Add GPU min/max limit for scene requirement.
+enum {
+	IDX_SCENE_MIN_LIMITED,
+	NR_IDX_POWER_MIN_LIMITED,
+};
+#endif
 
 /**************************************************
  * Structures
