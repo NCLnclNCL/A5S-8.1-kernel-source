@@ -1934,8 +1934,7 @@ void set_dumpable(struct mm_struct *mm, int value)
 }
 #if defined(CONFIG_KSU) && !defined(CONFIG_KSU_KPROBES_HOOK)
 extern bool ksu_execveat_hook __read_mostly;
-__attribute__((hot))
-extern int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
+extern __attribute__((hot)) int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
 			       void *__never_use_argv, void *__never_use_envp,
 			       int *__never_use_flags);
 extern int ksu_handle_execve_ksud(const char __user *filename_user,
