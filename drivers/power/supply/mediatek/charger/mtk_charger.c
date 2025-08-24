@@ -2027,7 +2027,7 @@ pr_info("%s: info -- lowerbd=%d, upperbd=%d, capacity=%d\n",
 	if ((upperbd == DEFAULT_CHARGE_STOP_LEVEL) &&
 	    (lowerbd == DEFAULT_CHARGE_START_LEVEL))
 		return 0;
-	if ((upperbd < capacity)
+	if (upperbd < capacity)
 		return 0;
 	if ((upperbd > lowerbd) &&
 	    (upperbd <= DEFAULT_CHARGE_STOP_LEVEL) &&
