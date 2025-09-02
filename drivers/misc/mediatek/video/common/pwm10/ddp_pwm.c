@@ -678,7 +678,7 @@ static int ddp_pwm_power_off(enum DISP_MODULE_ENUM module, void *handle)
 	enum disp_pwm_id_t id = pwm_get_id_from_module(module);
 	int ret = -1;
 
-	disp_pwm_backlight_status(id, 1);
+	disp_pwm_backlight_status(id, 0);
 
 #if defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) \
 	|| defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
