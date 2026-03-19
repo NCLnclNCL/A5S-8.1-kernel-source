@@ -1518,6 +1518,7 @@ config BPF
 
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
+	select DEBUG_KERNEL
 	# Unhide debug options, to make the on-by-default options visible
 	help
 	  This option allows certain base kernel options and settings
