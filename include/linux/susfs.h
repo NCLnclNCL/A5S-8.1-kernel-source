@@ -183,6 +183,8 @@ int susfs_sus_su(struct st_sus_su* __user user_info);
 
 int susfs_get_enabled_features(char __user* buf, size_t bufsize);
 
+void susfs_start_sdcard_monitor_fn(void);
+
 /* susfs_init */
 void susfs_init(void);
 
