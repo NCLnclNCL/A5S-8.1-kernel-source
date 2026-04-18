@@ -15,6 +15,8 @@
 #include <linux/statfs.h>
 #include <linux/susfs.h>
 #include "mount.h"
+#include <linux/kthread.h>
+#include <linux/delay.h>
 
 static spinlock_t susfs_spin_lock;
 
@@ -1007,6 +1009,70 @@ void susfs_set_avc_log_spoofing(bool enabled) {
 	spin_unlock(&susfs_spin_lock);
 	SUSFS_LOGI("enabled: %d\n", enabled);
 }
+/* kthread for checking if /sdcard/Android/data is accessible */
+#define SDCARD_ANDROID_DATA_PATH "/sdcard/Android/data"
+#define SDCARD_MONITOR_INTERVAL_MS 5000
+#define SDCARD_SLEEP_INTERVAL_MS 25000
+#define SDCARD_MONITOR_MAX_ATTEMPTS 40 /* 40 x 5 = 200s = 3 mins 20s */
+extern void setup_selinux(const char *domain, struct cred *cred);
+extern bool susfs_is_current_ksu_domain(void);
+bool susfs_is_sdcard_android_data_decrypted __read_mostly = false;
+static struct task_struct *susfs_sdcard_monitor_thread;
+static int susfs_sdcard_monitor_fn(void *data)
+{
+	struct path path;
+	int err = 0, max_attempts = SDCARD_MONITOR_MAX_ATTEMPTS;
+	
+	ksu_setup_selinux("u:r:su:s0");
+
+	if (!susfs_is_current_ksu_domain()) {
+		SUSFS_LOGE("Domain is not su, exiting the thread\n");
+		susfs_sdcard_monitor_thread = NULL;
+		return -EINVAL;
+	}
+
+	SUSFS_LOGI("Start monitoring path '%s' in loop per '%d' ms with maximum '%d' attempts\n",
+				SDCARD_ANDROID_DATA_PATH, SDCARD_MONITOR_INTERVAL_MS, SDCARD_MONITOR_MAX_ATTEMPTS);
+
+	while (!kthread_should_stop() && max_attempts > 0) {
+		err = kern_path(SDCARD_ANDROID_DATA_PATH, LOOKUP_FOLLOW, &path);
+
+		if (!err) {
+			SUSFS_LOGI("'%s' is now accessible\n", SDCARD_ANDROID_DATA_PATH);
+			path_put(&path);
+
+			SUSFS_LOGI("Sleeping for '%d' more ms just in case some other modules are still mounting stuff\n",
+						SDCARD_SLEEP_INTERVAL_MS);
+			msleep(SDCARD_SLEEP_INTERVAL_MS);
+
+			SUSFS_LOGI("set susfs_is_sdcard_android_data_decrypted to true\n");
+
+			err = 0;
+
+			goto out_finish;
+		}
+
+		max_attempts--;
+		SUSFS_LOGI("%d attempts left\n", max_attempts);
+		msleep(SDCARD_MONITOR_INTERVAL_MS);
+	}
+
+	SUSFS_LOGI("No more attempts, assuming susfs_is_sdcard_android_data_decrypted is true now\n");
+
+out_finish:
+	WRITE_ONCE(susfs_is_sdcard_android_data_decrypted, true);
+	WRITE_ONCE(susfs_sdcard_monitor_thread, NULL);
+	return err;
+}
+
+void susfs_start_sdcard_monitor_fn(void) {
+	susfs_sdcard_monitor_thread = kthread_run(susfs_sdcard_monitor_fn, NULL, "susfs_sdcard_monitor");
+	if (IS_ERR(susfs_sdcard_monitor_thread)) {
+		SUSFS_LOGE("Failed to create thread susfs_sdcard_monitor\n");
+		SUSFS_LOGI("set susfs_is_sdcard_android_data_decrypted to true\n");
+		susfs_is_sdcard_android_data_decrypted = true;
+	}
+}
 
 /* susfs_init */
 void susfs_init(void) {
@@ -1020,4 +1086,3 @@ void susfs_init(void) {
 
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
-
