@@ -439,7 +439,7 @@ static void fbt_set_idleprefer_locked(int enable)
 		return;
 
 	xgf_trace("fpsgo %s idelprefer", enable?"enable":"disbale");
-	prefer_idle_for_perf_idx(CGROUP_TA, enable);
+	//prefer_idle_for_perf_idx(CGROUP_TA, enable);
 	set_idleprefer = enable;
 }
 
