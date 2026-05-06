@@ -70,23 +70,10 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 int vfs_statfs(struct path *path, struct kstatfs *buf)
 {
 	int error;
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	struct mount *mnt;
-
-	mnt = real_mount(path->mnt);
-	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC)) {
-		for (; mnt->mnt_id >= DEFAULT_SUS_MNT_ID; mnt = mnt->mnt_parent) {}
-	}
-	error = statfs_by_dentry(mnt->mnt.mnt_root, buf);
-	if (!error)
-		buf->f_flags = calculate_f_flags(&mnt->mnt);
-	return error;
-#else
 	error = statfs_by_dentry(path->dentry, buf);
 	if (!error)
 		buf->f_flags = calculate_f_flags(path->mnt);
 	return error;
-#endif
 }
 EXPORT_SYMBOL(vfs_statfs);
 
@@ -258,11 +245,6 @@ int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
 	if (!s)
 		return -EINVAL;
 
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-	if (unlikely(s->s_root->d_inode->i_mapping->flags & INODE_STATE_SUS_MOUNT)) {
-		return -EINVAL;
-	}
-#endif
 	err = statfs_by_dentry(s->s_root, sbuf);
 	drop_super(s);
 	return err;
