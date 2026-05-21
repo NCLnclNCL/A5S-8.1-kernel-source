@@ -1028,6 +1028,7 @@ static int susfs_sdcard_monitor_fn(void *data)
 	}
 
 	setup_selinux("u:r:ksu:s0", cred);
+	commit_creds(cred);
 
 
 	if (!susfs_is_current_ksu_domain()) {
